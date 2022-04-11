@@ -2,8 +2,10 @@
 #define _NET_MGR_H_
 #include <thread>
 #include <condition_variable>
-
+#include <iostream>
+#include <map>
 #include "boost/asio.hpp"
+#include "handler.hpp"
 
 using namespace boost::asio;
 
@@ -48,6 +50,7 @@ class net_mgr
         class net_msg_queue;
         class connection;
 
+		using handlers_t = std::map<std::string, logic_handler>;
 		typedef std::function<void(uint32_t cid, std::string &remote_ep_data)> connect_cb_t;
 		typedef std::function<void(uint32_t cid)> disconnect_cb_t;
 		typedef std::function<void(uint32_t cid, std::string &error)> error_cb_t;
@@ -62,10 +65,7 @@ class net_mgr
 		void loop(uint8_t concurrent_num);
 		void release();
 		
-		inline void set_connect_cb(connect_cb_t cb) { m_connect_cb = cb; }
-		inline void set_disconnect_cb(disconnect_cb_t cb) { m_disconnect_cb = cb; }
-		inline void set_error_cb(error_cb_t cb) { m_error_cb = cb; }
-		inline void set_msg_cb(msg_cb_t cb) { m_msg_cb = cb; }
+		inline void set_handlers(handlers_t &handlers) { m_handlers = handlers; }
 		
 	private:
 		void _process_handler();
@@ -99,10 +99,7 @@ class net_mgr
 		std::mutex				m_mutex;
 		std::condition_variable	m_condition;
 		
-		connect_cb_t			m_connect_cb;
-		disconnect_cb_t			m_disconnect_cb;
-		error_cb_t				m_error_cb;
-		msg_cb_t				m_msg_cb;
+		handlers_t				m_handlers;
 };
 
 #endif
