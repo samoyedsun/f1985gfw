@@ -351,8 +351,7 @@ void net_mgr::_work_handler()
 
 void net_mgr::_accept_post()
 {
-    connection *new_conn_ptr = new connection(*this);
-    m_connections.push_back(new_conn_ptr);
+    connection *new_conn_ptr = _add_connection();
     m_acceptor.async_accept(new_conn_ptr->get_socket(),
         [this, new_conn_ptr](const boost::system::error_code& ec)
         {
@@ -391,22 +390,17 @@ uint32_t net_mgr::_gen_cid()
     return ++m_cid_seed;
 }
 
-net_mgr::connection *net_mgr::_get_connection(uint32_t cid)
+net_mgr::connection *net_mgr::_add_connection()
 {
-    auto target_iter = std::find_if(m_connections.begin(), m_connections.end(), [cid](connection *conn_ptr)
-        {
-            return conn_ptr->get_cid() == cid;
-        }
-    );
-    if (target_iter == m_connections.end())
-    {
-        return NULL;
-    }
-    return *target_iter;
+    std::lock_guard<std::mutex> lock(m_mutex);
+    connection *new_conn_ptr = new connection(*this);
+    m_connections.push_back(new_conn_ptr);
+    return new_conn_ptr;
 }
 
 void net_mgr::_del_connection(uint32_t cid)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
     auto target_iter = std::find_if(m_connections.begin(), m_connections.end(), [cid](connection *conn_ptr)
         {
             return conn_ptr->get_cid() == cid;

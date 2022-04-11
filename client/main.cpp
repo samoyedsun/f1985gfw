@@ -1,9 +1,8 @@
 #include <iostream>
+#include <thread>
 
 #include "boost/version.hpp"
 #include "boost/asio.hpp"
-#include "boost/array.hpp"
-#include "boost/thread/thread.hpp"
 
 using namespace std;
 using namespace boost::asio;
@@ -17,10 +16,9 @@ void version()
 	return;
 }
 
-int main()
+void process(int i)
 {
-	version();
-	
+	cout << "thread i:" << i << endl;
 	try
 	{
 		io_service io_srv;
@@ -29,8 +27,6 @@ int main()
 		ip::tcp::endpoint endpoint(ip::address::from_string("127.0.0.1"), 19850);
 		socket.connect(endpoint);
 		
-		size_t len;
-		//boost::array<char, 128> buf;
 		boost::system::error_code ec;
 
 		char *buf = (char *)malloc(12);
@@ -55,26 +51,12 @@ int main()
 		{
 			throw boost::system::system_error(ec);
 		}
-
-		len = socket.read_some(boost::asio::buffer(buf, 12), ec);
+		
+		socket.read_some(boost::asio::buffer(buf, 12), ec);
 		if (ec)
 		{
 			throw boost::system::system_error(ec);
 		}
-		
-		string remote_host = string(buf, len);
-		string::size_type pos = remote_host.find(":", 0);
-		string remote_address = remote_host.substr(0, pos);
-		string remote_port = remote_host.substr(pos + 1, remote_host.size() - 1);
-
-		cout << "对方地址:" << remote_host << endl;
-		cout << "自己地址:"
-			<< socket.local_endpoint().address()
-			<< ":"
-			<< socket.local_endpoint().port()
-		<< endl;
-		string self_address = socket.local_endpoint().address().to_string();
-		size_t self_port = socket.local_endpoint().port();
 
 		socket.shutdown(ip::tcp::socket::shutdown_both, ec);
 		if (ec)
@@ -87,76 +69,7 @@ int main()
 			throw boost::system::system_error(ec);
 		}
 
-		int delay_count = 0;
-		while (delay_count ++ < 3)
-		{
-			sleep(1);	
-			cout << "after closed socket, delay count : " << delay_count << endl;
-		}
-
-		ip::tcp::acceptor acceptor(io_srv);
-                ip::tcp::endpoint svc_endpoint(ip::address_v4::from_string(self_address.c_str()), self_port);
-        acceptor.open(svc_endpoint.protocol());
-    	acceptor.set_option(ip::tcp::acceptor::reuse_address(true));
-		acceptor.bind(svc_endpoint);
-		acceptor.listen();
-
-		std::shared_ptr<ip::tcp::socket> p_data_socket = std::make_shared<ip::tcp::socket>(io_srv);
-		acceptor.async_accept(*p_data_socket, [p_data_socket](boost::system::error_code ec)
-		{
-			if (ec)
-			{
-				cout << "accept error:" << ec.message() << endl;
-			}
-			else
-			{
-				cout << "accept success!" << endl;
-
-				boost::array<char, 128> buf;
-				size_t len = p_data_socket->read_some(boost::asio::buffer(buf), ec);
-				if (ec)
-				{
-					throw boost::system::system_error(ec);
-				}
-				cout << "===========read len:" << len << endl;
-				cout << "===========read str:" << string(buf.data(), len) << endl;
-				
-				// 接下来继续读新的数据
-			}
-		});
-
-		while (delay_count ++ < 6)
-		{
-			sleep(1);	
-			cout << "after closed socket, delay count : " << delay_count << endl;
-		}
-
-		boost::thread thrd([&]()
-		{
-			io_service io_cli;
-			ip::tcp::endpoint cli_endpoint(ip::address::from_string(remote_address.c_str()), stoi(remote_port));
-			ip::tcp::socket cli_socket(io_cli);
-			cout << "connnect to " << remote_host <<  endl;
-			cli_socket.connect(cli_endpoint);
-			cout << "connnect success " <<  endl;
-
-			cout << "press any key to continue!" << endl;
-			char a;
-			cin >> a;
-			cout << a;
-
-			cli_socket.write_some(buffer("Hello P2P"), ec);
-			if (ec)
-			{
-				throw boost::system::system_error(ec);
-			}
-			cout << "send some data" << endl;
-			
-			io_cli.run();
-		});
-
 		io_srv.run();
-        	thrd.join();
 
 		cout << "executor finish" << endl;
 	}
@@ -164,6 +77,24 @@ int main()
 	{
 		cout << "异常:" << e.what() << endl;
 	}
+}
+
+int main()
+{
+	version();
+
+	std::vector<std::thread> m_socket_threads;
+    for (uint8_t i = 1; i <= 200; ++i)
+    {
+        m_socket_threads.emplace_back([i](){
+			process(i);
+		});
+    }
+
+    for (uint8_t i = 1; i <= 200; ++i)
+    {
+        m_socket_threads[i].join();
+    }
 
 	return 0;
 }

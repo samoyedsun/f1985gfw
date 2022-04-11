@@ -80,7 +80,7 @@ class net_mgr
 
 		uint32_t _gen_cid();
 
-		connection *_get_connection(uint32_t cid);
+		connection *_add_connection();
 		void _del_connection(uint32_t cid);
 
 		void _post_msg(uint32_t cid, uint16_t id, const void *data_ptr, uint16_t size);
@@ -95,7 +95,7 @@ class net_mgr
 		std::vector<std::thread>m_worker_threads;
 		net_msg_queue *         m_msg_queue_ptr;
 		uint32_t 				m_cid_seed;
-
+		
 		std::mutex				m_mutex;
 		std::condition_variable	m_condition;
 		
