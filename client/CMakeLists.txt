@@ -10,8 +10,8 @@ message("BINARY DIR : ${PROJECT_BINARY_DIR}")
 
 add_definitions("-Wall -g -fPIC")
 
-include_directories(${PROJECT_SOURCE_DIR}/../../boost_1_78_0)
-link_directories(${PROJECT_SOURCE_DIR}/../../boost_1_78_0/stage/lib)
+include_directories(${PROJECT_SOURCE_DIR}/../../dependent/boost/include)
+link_directories(${PROJECT_SOURCE_DIR}/../../dependent/boost/lib)
 
 add_executable(client main.cpp)
 

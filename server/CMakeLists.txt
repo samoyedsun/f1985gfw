@@ -10,8 +10,8 @@ message("binary dir : ${PROJECT_BINARY_DIR}")
 
 add_definitions("-Wall -g -fPIC")
 
-include_directories(${PROJECT_SOURCE_DIR}/../../boost_1_78_0)
-link_directories(${PROJECT_SOURCE_DIR}/../../boost_1_78_0/stage/lib)
+include_directories(${PROJECT_SOURCE_DIR}/../../dependent/boost/include)
+link_directories(${PROJECT_SOURCE_DIR}/../../dependent/boost/lib)
 
 add_library(net_mgr net_mgr.cpp)
 target_link_libraries(net_mgr PUBLIC pthread)
