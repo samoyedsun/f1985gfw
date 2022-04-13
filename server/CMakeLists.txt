@@ -10,15 +10,16 @@ message("binary dir : ${PROJECT_BINARY_DIR}")
 
 add_definitions("-Wall -g -fPIC")
 
-include_directories(${PROJECT_SOURCE_DIR}/../../dependent/boost/include)
-link_directories(${PROJECT_SOURCE_DIR}/../../dependent/boost/lib)
+add_subdirectory(message)
+add_subdirectory(net_mgr)
 
-add_library(net_mgr net_mgr.cpp)
-target_link_libraries(net_mgr PUBLIC pthread)
+include_directories(
+    ${PROJECT_SOURCE_DIR}/../../dependent/boost/include
+    ${PROJECT_SOURCE_DIR}/../../dependent/protobuf/include
+)
+link_directories(${PROJECT_SOURCE_DIR}/../../dependent/boost/lib)
 
 add_executable(server main.cpp)
 
 target_link_libraries(server PUBLIC pthread net_mgr)
-target_include_directories(server PUBLIC
-                            "${PROJECT_SOURCE_DIR}"
-                        )
+target_include_directories(server PUBLIC "${PROJECT_SOURCE_DIR}")

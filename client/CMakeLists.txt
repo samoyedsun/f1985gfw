@@ -10,6 +10,8 @@ message("BINARY DIR : ${PROJECT_BINARY_DIR}")
 
 add_definitions("-Wall -g -fPIC")
 
+add_subdirectory(message)
+
 include_directories(${PROJECT_SOURCE_DIR}/../../dependent/boost/include)
 link_directories(${PROJECT_SOURCE_DIR}/../../dependent/boost/lib)
 

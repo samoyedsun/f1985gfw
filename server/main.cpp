@@ -1,7 +1,8 @@
 #include <iostream>
 #include <map>
-#include "net_mgr.h"
+#include "net_mgr/net_mgr.h"
 #include "handler.hpp"
+#include "message/hello_define.pb.h"
 
 int main()
 {
