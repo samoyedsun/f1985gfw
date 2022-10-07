@@ -282,6 +282,7 @@ void net_mgr::loop(uint8_t concurrent_num)
     {
         m_worker_threads.emplace_back(&net_mgr::_process_handler, this);
     }
+    
 }
 
 void net_mgr::release()
@@ -308,21 +309,21 @@ void net_mgr::_process_handler()
             if (p->id == EMIR_Connect)
             {
                 std::string remote_ep_data(p->buffer, p->size);
-                m_handlers["on_connect"](p->cid, remote_ep_data);
+                m_connect_cb(p->cid, remote_ep_data);
             }
             else if (p->id == EMIR_Disconnect)
             {
-                m_handlers["on_disconnect"](p->cid);
+                m_disconnect_cb(p->cid);
                 _del_connection(p->cid);
             }
             else if (p->id == EMIR_Error)
             {
                 std::string error_data(p->buffer, p->size);
-                m_handlers["on_error"](p->cid, error_data);
+                m_error_cb(p->cid, error_data);
             }
             else
             {
-                m_handlers["on_msg"](p->cid, p->id, p->buffer, p->size);
+                m_message_cb(p->cid, p->id, p->buffer, p->size);
             }
 
             m_msg_queue_ptr->release_element(p);
@@ -330,6 +331,7 @@ void net_mgr::_process_handler()
 
         std::unique_lock<std::mutex> lock{ m_mutex };
         m_condition.wait(lock);
+        std::cout << "=========================" << std::endl;
     }
 
 }

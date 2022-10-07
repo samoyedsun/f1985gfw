@@ -84,14 +84,14 @@ int main()
 	version();
 
 	std::vector<std::thread> m_socket_threads;
-    for (uint8_t i = 1; i <= 200; ++i)
+    for (uint8_t i = 1; i <= 10; ++i)
     {
         m_socket_threads.emplace_back([i](){
 			process(i);
 		});
     }
 
-    for (uint8_t i = 1; i <= 200; ++i)
+    for (uint8_t i = 1; i <= 10; ++i)
     {
         m_socket_threads[i].join();
     }

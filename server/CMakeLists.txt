@@ -21,5 +21,5 @@ link_directories(${PROJECT_SOURCE_DIR}/../../dependent/boost/lib)
 
 add_executable(server main.cpp)
 
-target_link_libraries(server PUBLIC pthread net_mgr)
+target_link_libraries(server PUBLIC pthread boost_thread net_mgr)
 target_include_directories(server PUBLIC "${PROJECT_SOURCE_DIR}")
