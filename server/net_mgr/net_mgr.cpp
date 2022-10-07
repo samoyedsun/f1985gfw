@@ -1,4 +1,6 @@
 #include "net_mgr.h"
+#include <boost/function.hpp>
+#include <boost/bind/bind.hpp>
 
 #define HEADER_LEN 4
 #define RECV_BUFFER_SIZE 0xffff
@@ -103,6 +105,7 @@ class net_mgr::connection
         : m_cid(_net_mgr._gen_cid())
         , m_net_mgr(_net_mgr)
         , m_socket(_net_mgr._get_io_service())
+        , m_strand(_net_mgr._get_io_service())
         , m_recv_buf_ptr(NULL)
         , m_recv_size(0)
         {
@@ -134,11 +137,7 @@ class net_mgr::connection
             m_net_mgr._post_msg(m_cid, EMIR_Connect, remote_ep_data.c_str(), remote_ep_data.size());
 
             m_socket.async_read_some(boost::asio::buffer(m_recv_buf_ptr + m_recv_size, RECV_BUFFER_SIZE - m_recv_size),
-                [this](const boost::system::error_code& error, std::size_t bytes_size)
-                {
-                    _read_handler(error, bytes_size);
-                }
-            );
+                m_strand.wrap(boost::bind(&connection::_read_handler, this, boost::placeholders::_1, boost::placeholders::_2)));
         }
 
         ip::tcp::socket &get_socket()
@@ -154,6 +153,11 @@ class net_mgr::connection
         void disconnected()
         {
             _close();
+        }
+
+        void do_write()
+        {
+
         }
 
     private:
@@ -187,11 +191,7 @@ class net_mgr::connection
             }
             
             m_socket.async_read_some(boost::asio::buffer(m_recv_buf_ptr + m_recv_size, RECV_BUFFER_SIZE - m_recv_size),
-                [this](const boost::system::error_code& error, std::size_t bytes_size)
-                {
-                    _read_handler(error, bytes_size);
-                }
-            );
+                m_strand.wrap(boost::bind(&connection::_read_handler, this, boost::placeholders::_1, boost::placeholders::_2)));
         }
 
         void _close()
@@ -220,9 +220,13 @@ class net_mgr::connection
     private:
         uint32_t m_cid;
         net_mgr &m_net_mgr;
+        
         ip::tcp::socket m_socket;
+        io_service::strand m_strand;
+
         char *m_recv_buf_ptr;
         uint16_t m_recv_size;
+
 };
 
 net_mgr::net_mgr()
