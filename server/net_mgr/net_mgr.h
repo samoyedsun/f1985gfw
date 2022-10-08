@@ -77,7 +77,7 @@ class net_mgr
 
 		net_msg_queue *_get_msg_queue();
 
-		io_service &_get_io_service();
+		io_context &_get_context();
 
 		uint32_t _gen_cid();
 
@@ -89,7 +89,7 @@ class net_mgr
 		void _wakeup();
 
 	private:
-		io_service 				m_io_service;
+		io_context 				m_context;
 		ip::tcp::acceptor 		m_acceptor;
 		std::vector<connection*>m_connections;
 		std::vector<std::thread>m_socket_threads;

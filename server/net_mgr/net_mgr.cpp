@@ -104,8 +104,8 @@ class net_mgr::connection
         connection(net_mgr &_net_mgr)
         : m_cid(_net_mgr._gen_cid())
         , m_net_mgr(_net_mgr)
-        , m_socket(_net_mgr._get_io_service())
-        , m_strand(_net_mgr._get_io_service())
+        , m_socket(_net_mgr._get_context())
+        , m_strand(_net_mgr._get_context())
         , m_recv_buf_ptr(NULL)
         , m_recv_size(0)
         {
@@ -230,7 +230,7 @@ class net_mgr::connection
 };
 
 net_mgr::net_mgr()
-    : m_acceptor(m_io_service)
+    : m_acceptor(m_context)
     , m_msg_queue_ptr(NULL)
     , m_cid_seed(0)
 {
@@ -344,7 +344,7 @@ void net_mgr::_work_handler()
 {
     try
     {
-        m_io_service.run();
+        m_context.run();
         std::string content = "io_service thread exit.";
         _post_msg(0, EMIR_Error, content.c_str(), content.size());
     }
@@ -386,9 +386,9 @@ net_mgr::net_msg_queue *net_mgr::_get_msg_queue()
     return m_msg_queue_ptr;
 }
 
-io_service &net_mgr::_get_io_service()
+io_context &net_mgr::_get_context()
 {
-    return m_io_service;
+    return m_context;
 }
 
 uint32_t net_mgr::_gen_cid()

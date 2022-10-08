@@ -49,3 +49,8 @@ High performance game server framework and tool chain.
     ```
     
     
+# TODO
+- 想着加入ecs的概念
+- 建立连接时 用户层创建RoleComponent设置到内核层的connection，每个RoleComponent有自己的消息队列
+- 收到消息时 解析消息投递到RoleComponent的消息队列
+- 关闭连接时 用户层删除RoleComponent
