@@ -33,7 +33,7 @@ int main()
 	net_mgr net;
 	net.set_message_cb(on_message);
 	net.startup("0.0.0.0", 19850, 8);
-	net.loop(1);
+	net.loop(8);
 	net.release();
 	return 0;
 }

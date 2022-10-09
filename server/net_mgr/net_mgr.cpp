@@ -244,8 +244,7 @@ void net_mgr::_process_handler()
             m_msg_queue.release_element(p);
         }
         usleep(16);
-        //std::unique_lock<std::mutex> lock{ m_mutex };
-        //m_condition.wait(lock);
+        //_wait();
         //std::cout << "=========================" << std::endl;
     }
 
@@ -318,11 +317,17 @@ void net_mgr::_del_pconnection(uint32_t cid)
 
 void net_mgr::_post_msg(uint32_t cid, uint16_t id, const void *data_ptr, uint16_t size)
 {
-    net_msg_t * msg_ptr = m_msg_queue.create_element(size);
+    net_msg_t *msg_ptr = m_msg_queue.create_element(size);
     m_msg_queue.init_element(msg_ptr, cid, id, size, data_ptr);
     m_msg_queue.enqueue(msg_ptr);
 
     //_wakeup();
+}
+
+void net_mgr::_wait()
+{
+    std::unique_lock<std::mutex> lock{ m_mutex };
+    m_condition.wait(lock);
 }
 
 void net_mgr::_wakeup()

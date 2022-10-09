@@ -53,7 +53,7 @@ class net_mgr
 				free(msg_ptr);
 			}
 
-			void enqueue(net_msg_t * msg_ptr)
+			void enqueue(net_msg_t *msg_ptr)
 			{
 				std::lock_guard<std::mutex> guard(m_mutex);
 				
@@ -86,7 +86,7 @@ class net_mgr
 
 			void clear()
 			{
-				net_msg_t* msg_ptr = NULL;
+				net_msg_t *msg_ptr = NULL;
 				std::lock_guard<std::mutex> guard(m_mutex);
 
 				while (m_head_ptr)
@@ -157,6 +157,8 @@ class net_mgr
 		pconnection_t _add_pconnection();
 		void _del_pconnection(uint32_t cid);
 		void _post_msg(uint32_t cid, uint16_t id, const void *data_ptr, uint16_t size);
+
+		void _wait();
 		void _wakeup();
 
 	private:
