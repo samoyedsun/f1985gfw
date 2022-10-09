@@ -209,7 +209,7 @@ void net_mgr::release()
     {
         pconnection->disconnected();
     }
-    for (std::thread &t : m_worker_threads)
+    for (std::thread &t : m_socket_threads)
     {
         t.join();
     }
