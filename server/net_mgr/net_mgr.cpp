@@ -1,6 +1,9 @@
 #include "net_mgr.h"
 #include <boost/function.hpp>
 #include <boost/bind/bind.hpp>
+#include <memory>
+#include <iostream>
+#include <unistd.h>
 
 #define HEADER_LEN 4
 #define RECV_BUFFER_SIZE 0xffff
@@ -12,91 +15,6 @@ std::string boost_lib_version()
         + std::to_string(BOOST_VERSION / 100 % 1000) + "."
         + std::to_string(BOOST_VERSION % 100);
 }
-
-class net_mgr::net_msg_queue
-{
-public:
-    net_msg_queue()
-    : m_head_ptr(NULL)
-    , m_tail_ptr(NULL)
-    {}
-    ~net_msg_queue()
-    {}
-
-    net_msg_t *create_element(uint16_t size)
-    {
-        return (net_msg_t *)malloc(sizeof(net_msg_t) - 1 + size);
-    }
-    
-    void init_element(net_msg_t *msg_ptr, uint32_t cid, uint16_t id, uint16_t size, const void *body)
-    {
-        msg_ptr->next = NULL;
-        msg_ptr->cid = cid;
-        msg_ptr->id = id;
-        msg_ptr->size = size;
-        if (body != NULL)
-        {
-            memcpy(msg_ptr->buffer, body, size);
-        }
-    }
-
-    void release_element(net_msg_t *msg_ptr)
-    {
-        free(msg_ptr);
-    }
-
-    void enqueue(net_msg_t * msg_ptr)
-    {
-        std::lock_guard<std::mutex> guard(m_mutex);
-        
-        if (m_tail_ptr)
-        {
-            m_tail_ptr->next = msg_ptr;
-            m_tail_ptr = msg_ptr;
-        }
-        else
-        {
-            m_head_ptr = m_tail_ptr = msg_ptr;
-        }
-    }
-
-    net_msg_t* dequeue()
-    {
-        if (!m_head_ptr)
-        {
-            return NULL;
-        }
-        else
-        {
-            std::lock_guard<std::mutex> guard(m_mutex);
-            net_msg_t* msg_ptr = m_head_ptr;
-            m_head_ptr = NULL;
-            m_tail_ptr = NULL;
-            return msg_ptr;
-        }
-    }
-
-    void clear()
-    {
-        net_msg_t* msg_ptr = NULL;
-        std::lock_guard<std::mutex> guard(m_mutex);
-
-        while (m_head_ptr)
-        {
-            msg_ptr = m_head_ptr;
-            m_head_ptr = m_head_ptr->next;
-            free(msg_ptr);
-        }
-
-        m_head_ptr = NULL;
-        m_tail_ptr = NULL;
-    }
-
-private:
-    std::mutex	m_mutex;
-    net_msg_t*	m_head_ptr;
-    net_msg_t*	m_tail_ptr;
-};
 
 class net_mgr::connection
 {
@@ -136,8 +54,7 @@ class net_mgr::connection
             remote_ep_data += std::to_string(ep.port());
             m_net_mgr._post_msg(m_cid, EMIR_Connect, remote_ep_data.c_str(), remote_ep_data.size());
 
-            m_socket.async_read_some(boost::asio::buffer(m_recv_buf_ptr + m_recv_size, RECV_BUFFER_SIZE - m_recv_size),
-                m_strand.wrap(boost::bind(&connection::_read_handler, this, boost::placeholders::_1, boost::placeholders::_2)));
+            _read_post();
         }
 
         ip::tcp::socket &get_socket()
@@ -161,37 +78,45 @@ class net_mgr::connection
         }
 
     private:
-        void _read_handler(const boost::system::error_code& error, std::size_t bytes_size)
+        void _read_post()
         {
-            if (error || 0 == bytes_size)
-            {
-                _close();
-                return;
-            }
-
-            m_recv_size += static_cast<uint16_t>(bytes_size);
-            if (m_recv_size >= HEADER_LEN)
-            {
-                uint16_t id = *(uint16_t *)m_recv_buf_ptr;
-                uint16_t size = *(uint16_t *)(m_recv_buf_ptr + sizeof(id));
-                if (size > RECV_BUFFER_SIZE - HEADER_LEN)
-                {
-                    std::string content = "recv msg too big.";
-                    m_net_mgr._post_msg(m_cid, EMIR_Error, content.c_str(), content.size());
-                    _close();
-                }
-                
-                if ((m_recv_size - HEADER_LEN) >= size)
-                {
-                    m_recv_size -= HEADER_LEN;
-                    void * body_ptr = m_recv_buf_ptr + m_recv_size;
-                    m_recv_size -= size;
-                    m_net_mgr._post_msg(m_cid, id, body_ptr, size);
-                }
-            }
-            
             m_socket.async_read_some(boost::asio::buffer(m_recv_buf_ptr + m_recv_size, RECV_BUFFER_SIZE - m_recv_size),
-                m_strand.wrap(boost::bind(&connection::_read_handler, this, boost::placeholders::_1, boost::placeholders::_2)));
+                m_strand.wrap([this](const boost::system::error_code& ec, std::size_t bytes_size)
+                {
+                    if (ec)
+                    {
+                        std::string content = "socket async read some error, " + ec.message();
+                        m_net_mgr._post_msg(m_cid, EMIR_Error, content.c_str(), content.size());
+                        return _close();
+                    }
+                    if (0 == bytes_size)
+                    {
+                        std::string content = "socket async read some bytes_size = 0";
+                        m_net_mgr._post_msg(m_cid, EMIR_Error, content.c_str(), content.size());
+                        return _close();
+                    }
+                    m_recv_size += static_cast<uint16_t>(bytes_size);
+                    if (m_recv_size >= HEADER_LEN)
+                    {
+                        uint16_t id = *(uint16_t *)m_recv_buf_ptr;
+                        uint16_t size = *(uint16_t *)(m_recv_buf_ptr + sizeof(id));
+                        if (size > RECV_BUFFER_SIZE - HEADER_LEN)
+                        {
+                            std::string content = "recv msg too big.";
+                            m_net_mgr._post_msg(m_cid, EMIR_Error, content.c_str(), content.size());
+                            _close();
+                        }
+                        
+                        if ((m_recv_size - HEADER_LEN) >= size)
+                        {
+                            m_recv_size -= HEADER_LEN;
+                            void * body_ptr = m_recv_buf_ptr + m_recv_size;
+                            m_recv_size -= size;
+                            m_net_mgr._post_msg(m_cid, id, body_ptr, size);
+                        }
+                    }
+                    _read_post();
+                }));
         }
 
         void _close()
@@ -200,14 +125,7 @@ class net_mgr::connection
             {
                 return;
             }
-
             boost::system::error_code ec;
-            m_socket.shutdown(ip::tcp::socket::shutdown_both, ec);
-            if (ec)
-            {
-                std::string content = "socket shutdown error, " + ec.message();
-                m_net_mgr._post_msg(m_cid, EMIR_Error, content.c_str(), content.size());
-            }
             m_socket.close(ec);
             if (ec)
             {
@@ -231,7 +149,6 @@ class net_mgr::connection
 
 net_mgr::net_mgr()
     : m_acceptor(m_context)
-    , m_msg_queue_ptr(NULL)
     , m_cid_seed(0)
 {
 
@@ -268,8 +185,6 @@ const net_mgr::result_t net_mgr::startup(const std::string& ip, uint16_t port, u
     {
         return ret.make_failure("socket listen error, " + ec.message());
     }
-
-    m_msg_queue_ptr = new net_msg_queue;
     
     for (uint8_t i = 0; i < concurrent_num; ++i)
     {
@@ -285,18 +200,23 @@ void net_mgr::loop(uint8_t concurrent_num)
     for (uint8_t i = 0; i < concurrent_num; ++i)
     {
         m_worker_threads.emplace_back(&net_mgr::_process_handler, this);
-    }
-    
+    }   
 }
 
 void net_mgr::release()
 {
-    for (size_t i = 0; i < m_socket_threads.size(); ++i)
+    for (auto pconnection : m_pconnections)
     {
-        m_socket_threads[i].join();
+        pconnection->disconnected();
     }
-    // post close socket
-    delete m_msg_queue_ptr;
+    for (std::thread &t : m_worker_threads)
+    {
+        t.join();
+    }
+    for (std::thread &t : m_worker_threads)
+    {
+        t.join();
+    }
     return;
 }
 
@@ -304,7 +224,7 @@ void net_mgr::_process_handler()
 {
     while(true)
     {
-        net_msg_t *msg_ptr = m_msg_queue_ptr->dequeue();
+        net_msg_t *msg_ptr = m_msg_queue.dequeue();
         while (msg_ptr)
         {
             net_msg_t *p = msg_ptr;
@@ -312,30 +232,21 @@ void net_mgr::_process_handler()
             p->next = NULL;
             if (p->id == EMIR_Connect)
             {
-                std::string remote_ep_data(p->buffer, p->size);
-                m_connect_cb(p->cid, remote_ep_data);
             }
             else if (p->id == EMIR_Disconnect)
             {
-                m_disconnect_cb(p->cid);
-                _del_connection(p->cid);
+                _del_pconnection(p->cid);
             }
             else if (p->id == EMIR_Error)
             {
-                std::string error_data(p->buffer, p->size);
-                m_error_cb(p->cid, error_data);
             }
-            else
-            {
-                m_message_cb(p->cid, p->id, p->buffer, p->size);
-            }
-
-            m_msg_queue_ptr->release_element(p);
+            m_message_cb(p->cid, p->id, p->buffer, p->size);
+            m_msg_queue.release_element(p);
         }
-
-        std::unique_lock<std::mutex> lock{ m_mutex };
-        m_condition.wait(lock);
-        std::cout << "=========================" << std::endl;
+        usleep(16);
+        //std::unique_lock<std::mutex> lock{ m_mutex };
+        //m_condition.wait(lock);
+        //std::cout << "=========================" << std::endl;
     }
 
 }
@@ -357,33 +268,21 @@ void net_mgr::_work_handler()
 
 void net_mgr::_accept_post()
 {
-    connection *new_conn_ptr = _add_connection();
-    m_acceptor.async_accept(new_conn_ptr->get_socket(),
-        [this, new_conn_ptr](const boost::system::error_code& ec)
+    pconnection_t pconnnection = _add_pconnection();
+    m_acceptor.async_accept(pconnnection->get_socket(), [this, pconnnection](const boost::system::error_code& ec)
+    {
+        if (!ec)
         {
-            _accept_handler(ec, new_conn_ptr);
+            pconnnection->connected();
+            _accept_post();
         }
-    );
-}
-
-void net_mgr::_accept_handler(const boost::system::error_code& ec, connection *curr_conn_ptr)
-{
-    if (!ec)
-    {
-        curr_conn_ptr->connected();
-        _accept_post();
-    }
-    else
-    {
-        curr_conn_ptr->disconnected();
-        std::string content = "accept failed. cid:" + std::to_string(curr_conn_ptr->get_cid());
-        _post_msg(0, EMIR_Error, content.c_str(), content.size());
-    }
-}
-
-net_mgr::net_msg_queue *net_mgr::_get_msg_queue()
-{
-    return m_msg_queue_ptr;
+        else
+        {
+            pconnnection->disconnected();
+            std::string content = "accept failed. cid:" + std::to_string(pconnnection->get_cid());
+            _post_msg(0, EMIR_Error, content.c_str(), content.size());
+        }
+    });
 }
 
 io_context &net_mgr::_get_context()
@@ -396,41 +295,34 @@ uint32_t net_mgr::_gen_cid()
     return ++m_cid_seed;
 }
 
-net_mgr::connection *net_mgr::_add_connection()
+net_mgr::pconnection_t net_mgr::_add_pconnection()
 {
     std::lock_guard<std::mutex> lock(m_mutex);
-    connection *new_conn_ptr = new connection(*this);
-    m_connections.push_back(new_conn_ptr);
-    return new_conn_ptr;
+    pconnection_t pconnection = std::make_shared<connection>(*this);
+    m_pconnections.push_back(pconnection);
+    return pconnection;
 }
 
-void net_mgr::_del_connection(uint32_t cid)
+void net_mgr::_del_pconnection(uint32_t cid)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
-    auto target_iter = std::find_if(m_connections.begin(), m_connections.end(), [cid](connection *conn_ptr)
-        {
-            return conn_ptr->get_cid() == cid;
-        }
-    );
-    if (target_iter != m_connections.end())
+    auto target_iter = std::find_if(m_pconnections.begin(), m_pconnections.end(), [cid](pconnection_t pconnection)
     {
-        delete (*target_iter);
-        
-        
-        m_connections.erase(target_iter);
-
-        iter_swap(target_iter, m_connections.end() - 1);
-        m_connections.pop_back();
+        return pconnection->get_cid() == cid;
+    });
+    if (target_iter != m_pconnections.end())
+    {
+        m_pconnections.erase(target_iter);
     }
 }
 
 void net_mgr::_post_msg(uint32_t cid, uint16_t id, const void *data_ptr, uint16_t size)
 {
-    net_msg_t * msg_ptr = _get_msg_queue()->create_element(size);
-    _get_msg_queue()->init_element(msg_ptr, cid, id, size, data_ptr);
-    _get_msg_queue()->enqueue(msg_ptr);
+    net_msg_t * msg_ptr = m_msg_queue.create_element(size);
+    m_msg_queue.init_element(msg_ptr, cid, id, size, data_ptr);
+    m_msg_queue.enqueue(msg_ptr);
 
-    _wakeup();
+    //_wakeup();
 }
 
 void net_mgr::_wakeup()
