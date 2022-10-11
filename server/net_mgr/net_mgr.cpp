@@ -7,6 +7,7 @@
 
 #define HEADER_LEN 4
 #define RECV_BUFFER_SIZE 0xffff
+#define SEND_BUFFER_SIZE 0xffff
 
 std::string boost_lib_version()
 {
@@ -25,13 +26,17 @@ class net_mgr::connection
         , m_socket(_net_mgr._get_context())
         , m_strand(_net_mgr._get_context())
         , m_recv_buf_ptr(NULL)
+        , m_send_buf_ptr(NULL)
         , m_recv_size(0)
+        , m_send_size(0)
         {
             m_recv_buf_ptr = (char *)malloc(RECV_BUFFER_SIZE);
+            m_send_buf_ptr = (char *)malloc(SEND_BUFFER_SIZE);
         }
         ~connection()
         {
             free(m_recv_buf_ptr);
+            free(m_send_buf_ptr);
         }
 
         void connected()
@@ -144,7 +149,8 @@ class net_mgr::connection
 
         char *m_recv_buf_ptr;
         uint16_t m_recv_size;
-
+        char *m_send_buf_ptr;
+        uint16_t m_send_size;
 };
 
 net_mgr::net_mgr()
@@ -224,10 +230,10 @@ void net_mgr::_process_handler()
 {
     while(true)
     {
-        net_msg_t *msg_ptr = m_msg_queue.dequeue();
+        net_msg_queue::net_msg_t *msg_ptr = m_msg_queue.dequeue();
         while (msg_ptr)
         {
-            net_msg_t *p = msg_ptr;
+            net_msg_queue::net_msg_t *p = msg_ptr;
             msg_ptr = msg_ptr->next;
             p->next = NULL;
             if (p->id == EMIR_Connect)
@@ -317,7 +323,7 @@ void net_mgr::_del_pconnection(uint32_t cid)
 
 void net_mgr::_post_msg(uint32_t cid, uint16_t id, const void *data_ptr, uint16_t size)
 {
-    net_msg_t *msg_ptr = m_msg_queue.create_element(size);
+    net_msg_queue::net_msg_t *msg_ptr = m_msg_queue.create_element(size);
     m_msg_queue.init_element(msg_ptr, cid, id, size, data_ptr);
     m_msg_queue.enqueue(msg_ptr);
 

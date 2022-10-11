@@ -1,5 +1,5 @@
-#ifndef _NET_MSG_H_
-#define _NET_MSG_H_
+#ifndef _NET_PROTO_H_
+#define _NET_PROTO_H_
 
 #include <cstring>
 #include <iostream>

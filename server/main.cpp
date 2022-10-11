@@ -1,7 +1,7 @@
 #include <iostream>
 #include <map>
 #include "net_mgr/net_mgr.h"
-#include "net_mgr/net_msg.hpp"
+#include "net_mgr/net_proto.hpp"
 #include "message/hello_define.pb.h"
 
 void on_message(uint32_t cid, uint16_t id, char *buffer, uint16_t size)
