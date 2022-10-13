@@ -98,6 +98,7 @@
         "concepts": "cpp",
         "coroutine": "cpp",
         "ios": "cpp",
-        "locale": "cpp"
+        "locale": "cpp",
+        "xutility": "cpp"
     }
 }

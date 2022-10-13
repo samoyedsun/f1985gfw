@@ -1,8 +1,7 @@
-#ifndef _NET_QUEUE_H_
-#define _NET_QUEUE_H_
+#ifndef _NET_SESSION_QUEUE_H_
+#define _NET_SESSION_QUEUE_H_
 
-#include <condition_variable>
-#include <iostream>
+#include <mutex>
 
 class net_msg_queue
 {
@@ -99,5 +98,88 @@ class net_msg_queue
         net_msg_t*	m_tail_ptr;
 };
 
+class net_session_queue
+{
+    public:
+        typedef struct _net_session_
+        {
+            int cid;
+            bool processing;
+            struct _net_session_ *next;
+            net_msg_queue msg_queue;
+        } net_session_t;
+
+    public:
+        net_session_queue()
+            : m_head(nullptr)
+            , m_tail(nullptr)
+
+        {
+        }
+        ~net_session_queue()
+        {
+            if (m_head == nullptr)
+            {
+                return;
+            }
+            while (m_head)
+            {
+                net_session_t *ptr = m_head->next;
+                release(m_head);
+                m_head = ptr;
+            }
+        }
+
+    public:
+        net_session_t *create(int cid)
+        {
+            net_session_t *ptr = new net_session_t;
+            ptr->cid = cid;
+            ptr->processing = false;
+            ptr->next = nullptr;
+            return ptr;
+        }
+
+        void release(net_session_t *ptr)
+        {
+            delete ptr;
+        }
+
+        void push(net_session_t *ptr)
+        {
+            std::lock_guard<std::mutex> guard(m_mutex);
+            
+            if (m_tail == nullptr)
+            {
+                m_head = m_tail = ptr;
+            }
+            else
+            {
+                m_tail->next = ptr;
+                m_tail = ptr;
+            }
+        }
+
+        net_session_t *pop()
+        {
+            std::lock_guard<std::mutex> guard(m_mutex);
+            
+            net_session_t *ptr = m_head;
+            if (m_head != nullptr)
+            {
+                m_head = ptr->next;
+                if (m_head == nullptr)
+                {
+                    m_tail = m_head;
+                }
+            }
+            return ptr;
+        }
+        
+    private:
+        std::mutex	m_mutex;
+	    net_session_t *m_head;
+	    net_session_t *m_tail;
+};
 
 #endif

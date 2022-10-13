@@ -5,7 +5,7 @@
 #include <iostream>
 #include <map>
 #include "boost/asio.hpp"
-#include "net_queue.hpp"
+#include "net_session_queue.hpp"
 
 using namespace boost::asio;
 
