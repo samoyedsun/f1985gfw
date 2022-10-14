@@ -81,7 +81,7 @@ class net_mgr::connection
             _close();
         }
 
-        void do_write()
+        void send_msg(net_msg_queue::net_msg_t *msg_ptr)
         {
 
         }
@@ -129,7 +129,7 @@ class net_mgr::connection
         void _push_msg(uint32_t cid, uint16_t id, const void *data_ptr, uint16_t size)
         {
             net_msg_queue::net_msg_t *msg_ptr = net_msg_queue::create_element(size);
-            net_msg_queue::init_element(msg_ptr, cid, id, size, data_ptr);
+            net_msg_queue::init_element(net_msg_queue::ENMT_Read, msg_ptr, cid, id, size, data_ptr);
             m_net_session_ptr->msg_queue.enqueue(msg_ptr, [this]()
             {
                 if (!m_net_session_ptr->processing)
@@ -269,18 +269,25 @@ void net_mgr::_process_handler()
                     break;
                 }
                 msg_ptr->next = NULL;
-                if (msg_ptr->id == EMIR_Connect)
+                if (msg_ptr->type == net_msg_queue::ENMT_Read)
                 {
-                }
-                else if (msg_ptr->id == EMIR_Disconnect)
-                {
-                    _del_pconnection(msg_ptr->cid);
-                }
-                else if (msg_ptr->id == EMIR_Error)
-                {
+                    if (msg_ptr->id == EMIR_Connect)
+                    {
+                    }
+                    else if (msg_ptr->id == EMIR_Disconnect)
+                    {
+                        _del_pconnection(msg_ptr->cid);
+                    }
+                    else if (msg_ptr->id == EMIR_Error)
+                    {
 
+                    }
+                    m_message_cb(msg_ptr->cid, msg_ptr->id, msg_ptr->buffer, msg_ptr->size);
                 }
-                m_message_cb(msg_ptr->cid, msg_ptr->id, msg_ptr->buffer, msg_ptr->size);
+                if (msg_ptr->type == net_msg_queue::ENMT_Write)
+                {
+                    net_session_ptr->send_msg(msg_ptr);
+                }
                 net_msg_queue::release_element(msg_ptr);
             } while (true);
         }

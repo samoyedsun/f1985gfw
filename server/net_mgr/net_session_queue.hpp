@@ -7,8 +7,16 @@ class net_session_queue;
 class net_msg_queue
 {
     public:
+        enum ENetMsgType
+        {
+            ENMT_None   = 0;
+            ENMT_Read   = 1;
+            ENMT_Write  = 2;
+            ENMT_Max    = 3;
+        }
         typedef struct _net_msg_
         {
+            uint8_t type;
             struct _net_msg_ * next;
             uint32_t cid;
             uint16_t id;
@@ -29,8 +37,9 @@ class net_msg_queue
             return (net_msg_t *)malloc(sizeof(net_msg_t) - 1 + size);
         }
         
-        static void init_element(net_msg_t *msg_ptr, uint32_t cid, uint16_t id, uint16_t size, const void *body)
+        static void init_element(uint8_t type, net_msg_t *msg_ptr, uint32_t cid, uint16_t id, uint16_t size, const void *body)
         {
+            msg_ptr->type = type;
             msg_ptr->next = nullptr;
             msg_ptr->cid = cid;
             msg_ptr->id = id;
