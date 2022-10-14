@@ -29,10 +29,8 @@ void process(int i)
 		
 		boost::system::error_code ec;
 
-		size_t write_size = 0;
-		char *offset = NULL;
 		char *buf = (char *)malloc(12);
-		offset = buf;
+		char *offset = buf;
 
 		*((uint16_t *)offset) = 101;
 		offset += sizeof(uint16_t);
@@ -46,20 +44,33 @@ void process(int i)
 		*((uint32_t *)offset) = 2312;
 		offset += sizeof(uint32_t);
 
-		write_size = offset - buf;
+		size_t write_size = offset - buf;
 
+		std::cout << "========error:" << ec << std::endl;
 		socket.write_some(buffer(buf, write_size), ec);
 		if (ec)
 		{
-			throw boost::system::system_error(ec);
+			std::cout << "========error:" << ec << std::endl;
+			//throw boost::system::system_error(ec);
 		}
-		std::cout << "send finish 1" << std::endl;
-		socket.write_some(buffer(buf, write_size), ec);
-		if (ec)
-		{
-			throw boost::system::system_error(ec);
-		}
-		std::cout << "send finish 2" << std::endl;
+		
+		//std::cout << "==========1" << std::endl;
+		//socket.write_some(buffer(buf, write_size), ec);
+		//if (ec)
+		//{
+		//	std::cout << "========error:" << ec << std::endl;
+		//	//throw boost::system::system_error(ec);
+		//}
+
+		//std::cout << "==========2" << std::endl;
+		//socket.write_some(buffer(buf, write_size), ec);
+		//if (ec)
+		//{
+		//	std::cout << "========error:" << ec << std::endl;
+		//	throw boost::system::system_error(ec);
+		//}
+		
+		//std::cout << "==========3" << std::endl;
 		socket.read_some(boost::asio::buffer(buf, 12), ec);
 		if (ec)
 		{
@@ -91,15 +102,17 @@ int main()
 {
 	version();
 
+	int num = 1;
+
 	std::vector<std::thread> m_socket_threads;
-    for (uint8_t i = 0; i < 10; ++i)
+    for (uint8_t i = 1; i <= num; ++i)
     {
         m_socket_threads.emplace_back([i](){
 			process(i);
 		});
     }
 
-    for (uint8_t i = 0; i < 10; ++i)
+    for (uint8_t i = 1; i <= num; ++i)
     {
         m_socket_threads[i].join();
     }

@@ -3,6 +3,7 @@
 
 #include <mutex>
 
+class net_session_queue;
 class net_msg_queue
 {
     public:
@@ -17,35 +18,35 @@ class net_msg_queue
 
     public:
         net_msg_queue()
-        : m_head_ptr(NULL)
-        , m_tail_ptr(NULL)
+        : m_head_ptr(nullptr)
+        , m_tail_ptr(nullptr)
         {}
         ~net_msg_queue()
         {}
 
-        net_msg_t *create_element(uint16_t size)
+        static net_msg_t *create_element(uint16_t size)
         {
             return (net_msg_t *)malloc(sizeof(net_msg_t) - 1 + size);
         }
         
-        void init_element(net_msg_t *msg_ptr, uint32_t cid, uint16_t id, uint16_t size, const void *body)
+        static void init_element(net_msg_t *msg_ptr, uint32_t cid, uint16_t id, uint16_t size, const void *body)
         {
-            msg_ptr->next = NULL;
+            msg_ptr->next = nullptr;
             msg_ptr->cid = cid;
             msg_ptr->id = id;
             msg_ptr->size = size;
-            if (body != NULL)
+            if (body != nullptr)
             {
                 memcpy(msg_ptr->buffer, body, size);
             }
         }
 
-        void release_element(net_msg_t *msg_ptr)
+        static void release_element(net_msg_t *msg_ptr)
         {
             free(msg_ptr);
         }
 
-        void enqueue(net_msg_t *msg_ptr)
+        void enqueue(net_msg_t *msg_ptr, std::function<void()> after)
         {
             std::lock_guard<std::mutex> guard(m_mutex);
             
@@ -58,27 +59,33 @@ class net_msg_queue
             {
                 m_head_ptr = m_tail_ptr = msg_ptr;
             }
+
+            after();
         }
 
-        net_msg_t* dequeue()
+        net_msg_t* dequeue(std::function<void()> after)
         {
-            if (!m_head_ptr)
+            std::lock_guard<std::mutex> guard(m_mutex);
+            
+            net_msg_t *ptr = m_head_ptr;
+            if (m_head_ptr != nullptr)
             {
-                return NULL;
+                m_head_ptr = ptr->next;
+                if (m_head_ptr == nullptr)
+                {
+                    m_tail_ptr = m_head_ptr;
+                }
             }
             else
             {
-                std::lock_guard<std::mutex> guard(m_mutex);
-                net_msg_t* msg_ptr = m_head_ptr;
-                m_head_ptr = NULL;
-                m_tail_ptr = NULL;
-                return msg_ptr;
+                after();
             }
+            return ptr;
         }
 
         void clear()
         {
-            net_msg_t *msg_ptr = NULL;
+            net_msg_t *msg_ptr = nullptr;
             std::lock_guard<std::mutex> guard(m_mutex);
 
             while (m_head_ptr)
@@ -88,8 +95,8 @@ class net_msg_queue
                 free(msg_ptr);
             }
 
-            m_head_ptr = NULL;
-            m_tail_ptr = NULL;
+            m_head_ptr = nullptr;
+            m_tail_ptr = nullptr;
         }
 
     private:
@@ -103,7 +110,6 @@ class net_session_queue
     public:
         typedef struct _net_session_
         {
-            int cid;
             bool processing;
             struct _net_session_ *next;
             net_msg_queue msg_queue;
@@ -111,66 +117,64 @@ class net_session_queue
 
     public:
         net_session_queue()
-            : m_head(nullptr)
-            , m_tail(nullptr)
-
+            : m_head_ptr(nullptr)
+            , m_tail_ptr(nullptr)
         {
         }
         ~net_session_queue()
         {
-            if (m_head == nullptr)
+            if (m_head_ptr == nullptr)
             {
                 return;
             }
-            while (m_head)
+            while (m_head_ptr)
             {
-                net_session_t *ptr = m_head->next;
-                release(m_head);
-                m_head = ptr;
+                net_session_t *ptr = m_head_ptr->next;
+                release(m_head_ptr);
+                m_head_ptr = ptr;
             }
         }
 
     public:
-        net_session_t *create(int cid)
+        static net_session_t *create()
         {
             net_session_t *ptr = new net_session_t;
-            ptr->cid = cid;
             ptr->processing = false;
             ptr->next = nullptr;
             return ptr;
         }
 
-        void release(net_session_t *ptr)
+        static void release(net_session_t *ptr)
         {
             delete ptr;
         }
 
-        void push(net_session_t *ptr)
+        void enqueue(net_session_t *ptr)
         {
             std::lock_guard<std::mutex> guard(m_mutex);
             
-            if (m_tail == nullptr)
+            if (m_tail_ptr == nullptr)
             {
-                m_head = m_tail = ptr;
+                m_head_ptr = m_tail_ptr = ptr;
             }
             else
             {
-                m_tail->next = ptr;
-                m_tail = ptr;
+                m_tail_ptr->next = ptr;
+                m_tail_ptr = ptr;
             }
         }
 
-        net_session_t *pop()
+        net_session_t *dequeue()
         {
             std::lock_guard<std::mutex> guard(m_mutex);
             
-            net_session_t *ptr = m_head;
-            if (m_head != nullptr)
+            net_session_t *ptr = m_head_ptr;
+            if (m_head_ptr != nullptr)
             {
-                m_head = ptr->next;
-                if (m_head == nullptr)
+                m_head_ptr = ptr->next;
+                if (m_head_ptr == nullptr)
                 {
-                    m_tail = m_head;
+                    m_tail_ptr = m_head_ptr;
                 }
             }
             return ptr;
@@ -178,8 +182,8 @@ class net_session_queue
         
     private:
         std::mutex	m_mutex;
-	    net_session_t *m_head;
-	    net_session_t *m_tail;
+	    net_session_t *m_head_ptr;
+	    net_session_t *m_tail_ptr;
 };
 
 #endif

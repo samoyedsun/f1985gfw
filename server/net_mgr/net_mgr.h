@@ -63,8 +63,8 @@ class net_mgr
 		uint32_t _gen_cid();
 		pconnection_t _add_pconnection();
 		void _del_pconnection(uint32_t cid);
-		void _post_msg(uint32_t cid, uint16_t id, const void *data_ptr, uint16_t size);
-
+		void _post_msg(std::string &content);
+		net_session_queue &_session_queue();
 		void _wait();
 		void _wakeup();
 
@@ -74,7 +74,7 @@ class net_mgr
 		pconnections_t			m_pconnections;
 		std::vector<std::thread>m_socket_threads;
 		std::vector<std::thread>m_worker_threads;
-		net_msg_queue         	m_msg_queue;
+		net_session_queue		m_session_queue;
 		
 		uint32_t 				m_cid_seed;
 		
