@@ -56,3 +56,6 @@ High performance game server framework and tool chain.
 - 关闭连接时 用户层删除RoleComponent
 - 还有公共Component, 比如SceneComponent
 - 以后尝试加用boost异步加rpc,
+
+# Frame Diagram
+![Frame Diagram](./framediagram.png)
