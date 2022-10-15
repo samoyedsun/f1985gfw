@@ -5,7 +5,7 @@
 #include <iostream>
 #include <map>
 #include "boost/asio.hpp"
-#include "net_session_queue.hpp"
+#include "net_queue.hpp"
 
 using namespace boost::asio;
 
@@ -39,7 +39,8 @@ class net_mgr
 		
         class connection;
 		
-		using message_cb_t = std::function<void(uint32_t cid, uint16_t id, char *buffer, uint16_t size)>;
+		using message_back_cb_t = std::function<void(uint16_t id, const void *buffer, uint16_t size)>;
+		using message_cb_t = std::function<void(message_back_cb_t, uint8_t type, uint16_t id, const char *buffer, uint16_t size)>;
 
 		using pconnection_t = std::shared_ptr<connection>;
 		using pconnections_t = std::vector<pconnection_t>;
@@ -63,7 +64,6 @@ class net_mgr
 		uint32_t _gen_cid();
 		pconnection_t _add_pconnection();
 		void _del_pconnection(uint32_t cid);
-		void _post_msg(std::string &content);
 		net_session_queue &_session_queue();
 		void _wait();
 		void _wakeup();

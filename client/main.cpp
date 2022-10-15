@@ -53,18 +53,13 @@ void process(int i)
 		{
 			throw boost::system::system_error(ec);
 		}
-		std::cout << "send finish 1" << std::endl;
-		socket.write_some(buffer(buf, write_size), ec);
-		if (ec)
-		{
-			throw boost::system::system_error(ec);
-		}
-		std::cout << "send finish 2" << std::endl;
+		std::cout << "send finish" << std::endl;
 		socket.read_some(boost::asio::buffer(buf, 12), ec);
 		if (ec)
 		{
 			throw boost::system::system_error(ec);
 		}
+		std::cout << "recv finish" << std::endl;
 
 		socket.shutdown(ip::tcp::socket::shutdown_both, ec);
 		if (ec)

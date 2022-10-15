@@ -34,6 +34,7 @@ class net_mgr::connection
             m_send_buf_ptr = (char *)malloc(SEND_BUFFER_SIZE);
 
             m_net_session_ptr = net_session_queue::create();
+            m_net_session_ptr->owner_ptr = (void *)(&(*this));
         }
         ~connection()
         {
@@ -50,18 +51,18 @@ class net_mgr::connection
             if (ec)
             {
                 std::string content = "remote_endpoint, error: " + ec.message();
-                _push_msg(m_cid, EMIR_Error, content.c_str(), content.size());
+                push_msg(net_msg_queue::ENMT_Read, EMIR_Error, content.c_str(), content.size());
             }
             std::string remote_ep_data;
             remote_ep_data += ep.address().to_string(ec);
             if (ec)
             {
                 std::string content = "remote_endpoint address, error: " + ec.message();
-                _push_msg(m_cid, EMIR_Error, content.c_str(), content.size());
+                push_msg(net_msg_queue::ENMT_Read, EMIR_Error, content.c_str(), content.size());
             }
             remote_ep_data += ":";
             remote_ep_data += std::to_string(ep.port());
-            _push_msg(m_cid, EMIR_Connect, remote_ep_data.c_str(), remote_ep_data.size());
+            push_msg(net_msg_queue::ENMT_Read, EMIR_Connect, remote_ep_data.c_str(), remote_ep_data.size());
 
             _read_post();
         }
@@ -81,9 +82,44 @@ class net_mgr::connection
             _close();
         }
 
-        void send_msg(net_msg_queue::net_msg_t *msg_ptr)
+        void write_msg(uint16_t id, const void *data_ptr, uint16_t size)
         {
+		    char *offset = m_send_buf_ptr;
 
+            *((uint16_t *)offset) = id;
+            offset += sizeof(uint16_t);
+
+            *((uint16_t *)offset) = size;
+            offset += sizeof(uint16_t);
+            
+		    memcpy(offset, data_ptr, size);
+            offset += size;
+
+		    size_t write_size = offset - m_send_buf_ptr;
+            // m_send_size += write_size;
+            
+            boost::system::error_code ec;
+            m_socket.write_some(boost::asio::buffer(m_send_buf_ptr, write_size), ec);
+            if (ec)
+            {
+                std::string content = "socket write some error, " + ec.message();
+                push_msg(net_msg_queue::ENMT_Read, EMIR_Error, content.c_str(), content.size());
+                return _close();
+            }
+        }
+        
+        void push_msg(uint8_t type, uint16_t id, const void *data_ptr, uint16_t size)
+        {
+            net_msg_queue::net_msg_t *msg_ptr = net_msg_queue::create_element(size);
+            net_msg_queue::init_element(msg_ptr, type, id, size, data_ptr);
+            m_net_session_ptr->msg_queue.enqueue(msg_ptr, [this]()
+            {
+                if (!m_net_session_ptr->processing)
+                {
+                    m_net_session_ptr->processing = true;
+                    m_net_mgr._session_queue().enqueue(m_net_session_ptr);
+                }
+            });
         }
 
     private:
@@ -95,13 +131,13 @@ class net_mgr::connection
                     if (ec)
                     {
                         std::string content = "socket async read some error, " + ec.message();
-                        _push_msg(m_cid, EMIR_Error, content.c_str(), content.size());
+                        push_msg(net_msg_queue::ENMT_Read, EMIR_Error, content.c_str(), content.size());
                         return _close();
                     }
                     if (0 == bytes_size)
                     {
                         std::string content = "socket async read some bytes_size = 0";
-                        _push_msg(m_cid, EMIR_Error, content.c_str(), content.size());
+                        push_msg(net_msg_queue::ENMT_Read, EMIR_Error, content.c_str(), content.size());
                         return _close();
                     }
                     m_recv_size += static_cast<uint16_t>(bytes_size);
@@ -121,23 +157,9 @@ class net_mgr::connection
             if (ec)
             {
                 std::string content = "socket close error, " + ec.message();
-                _push_msg(m_cid, EMIR_Error, content.c_str(), content.size());
+                push_msg(net_msg_queue::ENMT_Read, EMIR_Error, content.c_str(), content.size());
             }
-            _push_msg(m_cid, EMIR_Disconnect, NULL, 0);
-        }
-        
-        void _push_msg(uint32_t cid, uint16_t id, const void *data_ptr, uint16_t size)
-        {
-            net_msg_queue::net_msg_t *msg_ptr = net_msg_queue::create_element(size);
-            net_msg_queue::init_element(net_msg_queue::ENMT_Read, msg_ptr, cid, id, size, data_ptr);
-            m_net_session_ptr->msg_queue.enqueue(msg_ptr, [this]()
-            {
-                if (!m_net_session_ptr->processing)
-                {
-                    m_net_session_ptr->processing = true;
-                    m_net_mgr._session_queue().enqueue(m_net_session_ptr);
-                }
-            });
+            push_msg(net_msg_queue::ENMT_Read, EMIR_Disconnect, NULL, 0);
         }
         
 		void _parse_msg()
@@ -149,7 +171,7 @@ class net_mgr::connection
                 if (size > RECV_BUFFER_SIZE - HEADER_LEN)
                 {
                     std::string content = "recv msg too big.";
-                    _push_msg(m_cid, EMIR_Error, content.c_str(), content.size());
+                    push_msg(net_msg_queue::ENMT_Read, EMIR_Error, content.c_str(), content.size());
                     _close();
                 }
                 if ((m_recv_size - HEADER_LEN) < size)
@@ -159,7 +181,7 @@ class net_mgr::connection
                 m_recv_size -= HEADER_LEN;
                 void * body_ptr = m_recv_buf_ptr + m_recv_size;
                 m_recv_size -= size;
-                _push_msg(m_cid, id, body_ptr, size);
+                push_msg(net_msg_queue::ENMT_Read, id, body_ptr, size);
             }
 		}
 
@@ -258,6 +280,7 @@ void net_mgr::_process_handler()
         net_session_queue::net_session_t *net_session_ptr = m_session_queue.dequeue();
         if (net_session_ptr)
         {
+            connection *connection_ptr = (connection *)(net_session_ptr->owner_ptr);
             do
             {
                 net_msg_queue::net_msg_t *msg_ptr = net_session_ptr->msg_queue.dequeue([net_session_ptr]()
@@ -276,17 +299,19 @@ void net_mgr::_process_handler()
                     }
                     else if (msg_ptr->id == EMIR_Disconnect)
                     {
-                        _del_pconnection(msg_ptr->cid);
+                        _del_pconnection(connection_ptr->get_cid());
                     }
                     else if (msg_ptr->id == EMIR_Error)
                     {
 
                     }
-                    m_message_cb(msg_ptr->cid, msg_ptr->id, msg_ptr->buffer, msg_ptr->size);
+                    m_message_cb([connection_ptr](uint16_t id, const void *data_ptr, uint16_t size){
+                        connection_ptr->push_msg(net_msg_queue::ENMT_Write, id, data_ptr, size);
+                    }, connection_ptr->get_cid(), msg_ptr->id, msg_ptr->buffer, msg_ptr->size);
                 }
                 if (msg_ptr->type == net_msg_queue::ENMT_Write)
                 {
-                    net_session_ptr->send_msg(msg_ptr);
+                    connection_ptr->write_msg(msg_ptr->id, msg_ptr->buffer, msg_ptr->size);
                 }
                 net_msg_queue::release_element(msg_ptr);
             } while (true);
@@ -358,11 +383,6 @@ void net_mgr::_del_pconnection(uint32_t cid)
     {
         m_pconnections.erase(target_iter);
     }
-}
-
-void net_mgr::_post_msg(std::string &content)
-{
-    std::cout << "出错了============================" << std::endl;
 }
 
 net_session_queue &net_mgr::_session_queue()

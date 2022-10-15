@@ -4,7 +4,7 @@
 #include "net_mgr/net_proto.hpp"
 #include "message/hello_define.pb.h"
 
-void on_message(uint32_t cid, uint16_t id, char *buffer, uint16_t size)
+void on_message(net_mgr::message_back_cb_t back_cb, uint32_t cid, uint16_t id, const char *buffer, uint16_t size)
 {
 	if (id == net_mgr::EMIR_Connect)
 	{
@@ -23,6 +23,7 @@ void on_message(uint32_t cid, uint16_t id, char *buffer, uint16_t size)
 	else
 	{
 		std::cout << "on message, cid:" << cid << ", id:" << id << ", size:" << size << std::endl;
+		back_cb(id, buffer, size);
 	}
 }
 

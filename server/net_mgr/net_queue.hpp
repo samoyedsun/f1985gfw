@@ -1,7 +1,9 @@
-#ifndef _NET_SESSION_QUEUE_H_
-#define _NET_SESSION_QUEUE_H_
+#ifndef _NET_QUEUE_H_
+#define _NET_QUEUE_H_
 
+#include <iostream>
 #include <mutex>
+#include <functional>
 
 class net_session_queue;
 class net_msg_queue
@@ -9,20 +11,19 @@ class net_msg_queue
     public:
         enum ENetMsgType
         {
-            ENMT_None   = 0;
-            ENMT_Read   = 1;
-            ENMT_Write  = 2;
-            ENMT_Max    = 3;
-        }
-        typedef struct _net_msg_
+            ENMT_None   = 0,
+            ENMT_Read   = 1,
+            ENMT_Write  = 2,
+            ENMT_Max    = 3,
+        };
+        using net_msg_t = struct _net_msg_
         {
-            uint8_t type;
             struct _net_msg_ * next;
-            uint32_t cid;
+            uint8_t type;
             uint16_t id;
             uint16_t size;
             char buffer[1];
-        } net_msg_t;
+        };
 
     public:
         net_msg_queue()
@@ -37,11 +38,10 @@ class net_msg_queue
             return (net_msg_t *)malloc(sizeof(net_msg_t) - 1 + size);
         }
         
-        static void init_element(uint8_t type, net_msg_t *msg_ptr, uint32_t cid, uint16_t id, uint16_t size, const void *body)
+        static void init_element(net_msg_t *msg_ptr, uint8_t type, uint16_t id, uint16_t size, const void *body)
         {
-            msg_ptr->type = type;
             msg_ptr->next = nullptr;
-            msg_ptr->cid = cid;
+            msg_ptr->type = type;
             msg_ptr->id = id;
             msg_ptr->size = size;
             if (body != nullptr)
@@ -117,12 +117,13 @@ class net_msg_queue
 class net_session_queue
 {
     public:
-        typedef struct _net_session_
+        using net_session_t = struct _net_session_
         {
+            void *owner_ptr;
             bool processing;
             struct _net_session_ *next;
             net_msg_queue msg_queue;
-        } net_session_t;
+        };
 
     public:
         net_session_queue()
@@ -148,6 +149,7 @@ class net_session_queue
         static net_session_t *create()
         {
             net_session_t *ptr = new net_session_t;
+            ptr->owner_ptr = nullptr;
             ptr->processing = false;
             ptr->next = nullptr;
             return ptr;
