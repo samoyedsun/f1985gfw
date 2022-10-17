@@ -42,7 +42,7 @@ class net_mgr
 		using message_back_cb_t = std::function<void(uint16_t id, const void *buffer, uint16_t size)>;
 		using message_cb_t = std::function<void(message_back_cb_t, uint8_t type, uint16_t id, const char *buffer, uint16_t size)>;
 
-		using pconnection_t = std::shared_ptr<connection>;
+		using pconnection_t = connection *;
 		using pconnections_t = std::vector<pconnection_t>;
 
 	public:
@@ -63,7 +63,6 @@ class net_mgr
 		io_context &_get_context();
 		uint32_t _gen_cid();
 		pconnection_t _add_pconnection();
-		void _del_pconnection(uint32_t cid);
 		net_session_queue &_session_queue();
 		void _wait();
 		void _wakeup();

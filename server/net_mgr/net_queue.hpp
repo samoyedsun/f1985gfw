@@ -16,9 +16,9 @@ class net_msg_queue
             ENMT_Write  = 2,
             ENMT_Max    = 3,
         };
-        using net_msg_t = struct _net_msg_
+        struct net_msg_t
         {
-            struct _net_msg_ * next;
+            struct net_msg_t * next;
             uint8_t type;
             uint16_t id;
             uint16_t size;
@@ -117,11 +117,11 @@ class net_msg_queue
 class net_session_queue
 {
     public:
-        using net_session_t = struct _net_session_
+        struct net_session_t
         {
             void *owner_ptr;
             bool processing;
-            struct _net_session_ *next;
+            struct net_session_t *next;
             net_msg_queue msg_queue;
         };
 

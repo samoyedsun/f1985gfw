@@ -20,15 +20,23 @@ std::string boost_lib_version()
 class net_mgr::connection
 {
     public:
+        enum EConnectionStatus
+        {
+            ECS_Stop        = 0,
+            ECS_Start       = 1,
+        };
+    public:
         connection(net_mgr &_net_mgr)
         : m_cid(_net_mgr._gen_cid())
         , m_net_mgr(_net_mgr)
+        , m_status(ECS_Stop)
         , m_socket(_net_mgr._get_context())
         , m_strand(_net_mgr._get_context())
-        , m_recv_buf_ptr(NULL)
-        , m_send_buf_ptr(NULL)
+        , m_recv_buf_ptr(nullptr)
         , m_recv_size(0)
+        , m_send_buf_ptr(nullptr)
         , m_send_size(0)
+        , m_net_session_ptr(nullptr)
         {
             m_recv_buf_ptr = (char *)malloc(RECV_BUFFER_SIZE);
             m_send_buf_ptr = (char *)malloc(SEND_BUFFER_SIZE);
@@ -42,6 +50,16 @@ class net_mgr::connection
             free(m_send_buf_ptr);
 
             net_session_queue::release(m_net_session_ptr);
+        }
+
+        void set_status(int32_t status)
+        {
+            m_status = status;
+        }
+
+        int32_t get_status()
+        {
+            return m_status;
         }
 
         void connected()
@@ -188,7 +206,7 @@ class net_mgr::connection
     private:
         uint32_t m_cid;
         net_mgr &m_net_mgr;
-        
+        uint32_t m_status;
         ip::tcp::socket m_socket;
         io_service::strand m_strand;
 
@@ -215,6 +233,11 @@ net_mgr::~net_mgr()
 const net_mgr::result_t net_mgr::startup(const std::string& ip, uint16_t port, uint8_t concurrent_num)
 {
     result_t ret;
+
+    for (int32_t i = 0; i < 1000; ++i)
+    {
+        m_pconnections.push_back(new connection(*this));
+    }
 
     ip::tcp::endpoint endpoint(ip::address_v4::from_string(ip), port);
     boost::system::error_code ec;
@@ -258,10 +281,6 @@ void net_mgr::loop(uint8_t concurrent_num)
 
 void net_mgr::release()
 {
-    for (auto pconnection : m_pconnections)
-    {
-        pconnection->disconnected();
-    }
     for (std::thread &t : m_socket_threads)
     {
         t.join();
@@ -269,6 +288,10 @@ void net_mgr::release()
     for (std::thread &t : m_worker_threads)
     {
         t.join();
+    }
+    for (auto pconnection : m_pconnections)
+    {
+        delete pconnection;
     }
     return;
 }
@@ -285,7 +308,7 @@ void net_mgr::_process_handler()
             {
                 net_msg_queue::net_msg_t *msg_ptr = net_session_ptr->msg_queue.dequeue([net_session_ptr]()
                 {
-                    net_session_ptr->processing = false;
+                    //net_session_ptr->processing = false;
                 });
                 if (!msg_ptr)
                 {
@@ -299,7 +322,7 @@ void net_mgr::_process_handler()
                     }
                     else if (msg_ptr->id == EMIR_Disconnect)
                     {
-                        _del_pconnection(connection_ptr->get_cid());
+                        //_del_pconnection(connection_ptr->get_cid());
                     }
                     else if (msg_ptr->id == EMIR_Error)
                     {
@@ -367,22 +390,16 @@ uint32_t net_mgr::_gen_cid()
 net_mgr::pconnection_t net_mgr::_add_pconnection()
 {
     std::lock_guard<std::mutex> lock(m_mutex);
-    pconnection_t pconnection = std::make_shared<connection>(*this);
-    m_pconnections.push_back(pconnection);
-    return pconnection;
-}
-
-void net_mgr::_del_pconnection(uint32_t cid)
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
-    auto target_iter = std::find_if(m_pconnections.begin(), m_pconnections.end(), [cid](pconnection_t pconnection)
+    auto target_iter = std::find_if(m_pconnections.begin(), m_pconnections.end(), [](pconnection_t pconnection)
     {
-        return pconnection->get_cid() == cid;
+        return pconnection->get_status() == connection::ECS_Stop;
     });
     if (target_iter != m_pconnections.end())
     {
-        m_pconnections.erase(target_iter);
+        (*target_iter)->set_status(connection::ECS_Start);
+        return *target_iter;
     }
+    return nullptr;
 }
 
 net_session_queue &net_mgr::_session_queue()
