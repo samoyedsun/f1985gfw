@@ -22,14 +22,15 @@ class net_mgr::connection
     public:
         enum EConnectionStatus
         {
-            ECS_Stop        = 0,
-            ECS_Start       = 1,
+            ECS_UseLess     = 1,
+            ECS_Start       = 2,
+            ECS_Stop        = 3,
         };
     public:
         connection(net_mgr &_net_mgr)
         : m_cid(_net_mgr._gen_cid())
         , m_net_mgr(_net_mgr)
-        , m_status(ECS_Stop)
+        , m_status(connection::ECS_UseLess)
         , m_socket(_net_mgr._get_context())
         , m_strand(_net_mgr._get_context())
         , m_recv_buf_ptr(nullptr)
@@ -306,9 +307,13 @@ void net_mgr::_process_handler()
             connection *connection_ptr = (connection *)(net_session_ptr->owner_ptr);
             do
             {
-                net_msg_queue::net_msg_t *msg_ptr = net_session_ptr->msg_queue.dequeue([net_session_ptr]()
+                net_msg_queue::net_msg_t *msg_ptr = net_session_ptr->msg_queue.dequeue([connection_ptr, net_session_ptr]()
                 {
-                    //net_session_ptr->processing = false;
+                    net_session_ptr->processing = false;
+                    if (connection_ptr->get_status() == connection::ECS_Stop)
+                    {
+                        connection_ptr->set_status(connection::ECS_UseLess);
+                    }
                 });
                 if (!msg_ptr)
                 {
@@ -322,7 +327,7 @@ void net_mgr::_process_handler()
                     }
                     else if (msg_ptr->id == EMIR_Disconnect)
                     {
-                        //_del_pconnection(connection_ptr->get_cid());
+                        connection_ptr->set_status(connection::ECS_Stop);
                     }
                     else if (msg_ptr->id == EMIR_Error)
                     {
@@ -392,7 +397,7 @@ net_mgr::pconnection_t net_mgr::_add_pconnection()
     std::lock_guard<std::mutex> lock(m_mutex);
     auto target_iter = std::find_if(m_pconnections.begin(), m_pconnections.end(), [](pconnection_t pconnection)
     {
-        return pconnection->get_status() == connection::ECS_Stop;
+        return pconnection->get_status() == connection::ECS_UseLess;
     });
     if (target_iter != m_pconnections.end())
     {

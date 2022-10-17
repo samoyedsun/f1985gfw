@@ -84,6 +84,7 @@ class net_msg_queue
                 {
                     m_tail_ptr = m_head_ptr;
                 }
+                ptr->next = nullptr;
             }
             else
             {
@@ -187,8 +188,23 @@ class net_session_queue
                 {
                     m_tail_ptr = m_head_ptr;
                 }
+                ptr->next = nullptr;
             }
             return ptr;
+        }
+
+        int32_t count()
+        {
+            std::lock_guard<std::mutex> guard(m_mutex);
+            
+            int32_t count = 0;
+            net_session_t *msg_ptr = m_head_ptr;
+            while (msg_ptr)
+            {
+                ++count;
+                msg_ptr = msg_ptr->next;
+            }
+            return count;
         }
         
     private:
