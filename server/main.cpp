@@ -22,6 +22,13 @@ void on_message(net_mgr::message_back_cb_t back_cb, uint32_t cid, uint16_t id, c
 	}
 	else
 	{
+		HelloData data;
+		if (false == data.ParsePartialFromArray(buffer, size))
+		{
+			std::cout << "Parse Fail===========" << std::endl;
+		}
+		std::cout << "== msg content, id:" << data.id() << ", member:" << data.member(0) << std::endl;
+
 		std::cout << "on message, cid:" << cid << ", id:" << id << ", size:" << size << std::endl;
 		back_cb(id, buffer, size);
 	}

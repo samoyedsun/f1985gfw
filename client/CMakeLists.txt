@@ -7,14 +7,22 @@ set(CMAKE_CXX_STANDARD_REQUIRED true)
 
 message("SOURCE DIR : ${PROJECT_SOURCE_DIR}")
 message("BINARY DIR : ${PROJECT_BINARY_DIR}")
+message("PROJECTNAME: ${PROJECT_NAME}")
 
 add_definitions("-Wall -g -fPIC")
 
 add_subdirectory(message)
 
-include_directories(${PROJECT_SOURCE_DIR}/../../dependent/boost/include)
-link_directories(${PROJECT_SOURCE_DIR}/../../dependent/boost/lib)
+include_directories(
+    ${PROJECT_SOURCE_DIR}/../../dependent/boost/include
+    ${PROJECT_SOURCE_DIR}/../../dependent/protobuf/include
+)
+link_directories(
+    ${PROJECT_SOURCE_DIR}/../../dependent/boost/lib
+    ${PROJECT_SOURCE_DIR}/../../dependent/protobuf/lib
+)
 
-add_executable(client main.cpp)
+add_executable(${PROJECT_NAME} main.cpp)
 
-target_link_libraries(client PUBLIC pthread boost_thread)
+target_link_libraries(${PROJECT_NAME} PUBLIC pthread boost_thread protobuf message)
+target_include_directories(${PROJECT_NAME} PUBLIC "${PROJECT_SOURCE_DIR}")

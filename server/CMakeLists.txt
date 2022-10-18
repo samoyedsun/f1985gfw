@@ -5,8 +5,9 @@ project(server VERSION 0.1)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
-message("source dir : ${PROJECT_SOURCE_DIR}")
-message("binary dir : ${PROJECT_BINARY_DIR}")
+message("SOURCE DIR : ${PROJECT_SOURCE_DIR}")
+message("BINARY DIR : ${PROJECT_BINARY_DIR}")
+message("PROJECTNAME: ${PROJECT_NAME}")
 
 add_definitions("-Wall -g -fPIC")
 
@@ -17,9 +18,12 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/../../dependent/boost/include
     ${PROJECT_SOURCE_DIR}/../../dependent/protobuf/include
 )
-link_directories(${PROJECT_SOURCE_DIR}/../../dependent/boost/lib)
+link_directories(
+    ${PROJECT_SOURCE_DIR}/../../dependent/boost/lib
+    ${PROJECT_SOURCE_DIR}/../../dependent/protobuf/lib
+)
 
-add_executable(server main.cpp)
+add_executable(${PROJECT_NAME} main.cpp)
 
-target_link_libraries(server PUBLIC pthread boost_thread net_mgr)
-target_include_directories(server PUBLIC "${PROJECT_SOURCE_DIR}")
+target_link_libraries(${PROJECT_NAME} PUBLIC pthread boost_thread protobuf net_mgr message)
+target_include_directories(${PROJECT_NAME} PUBLIC "${PROJECT_SOURCE_DIR}")

@@ -5,7 +5,7 @@
 #include <iostream>
 #include <map>
 #include "boost/asio.hpp"
-#include "net_queue.hpp"
+#include "net_queue.h"
 
 using namespace boost::asio;
 
@@ -40,7 +40,7 @@ class net_mgr
         class connection;
 		
 		using message_back_cb_t = std::function<void(uint16_t id, const void *buffer, uint16_t size)>;
-		using message_cb_t = std::function<void(message_back_cb_t, uint8_t type, uint16_t id, const char *buffer, uint16_t size)>;
+		using message_cb_t = std::function<void(message_back_cb_t, uint32_t cid, uint16_t id, const char *buffer, uint16_t size)>;
 
 		using pconnection_t = connection *;
 		using pconnections_t = std::vector<pconnection_t>;

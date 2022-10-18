@@ -129,8 +129,15 @@ class net_mgr::connection
         
         void push_msg(uint8_t type, uint16_t id, const void *data_ptr, uint16_t size)
         {
-            net_msg_queue::net_msg_t *msg_ptr = net_msg_queue::create_element(size);
-            net_msg_queue::init_element(msg_ptr, type, id, size, data_ptr);
+            net_msg_queue::net_msg_t *msg_ptr = net_msg_queue::create(size);
+            msg_ptr->next = nullptr;
+            msg_ptr->type = type;
+            msg_ptr->id = id;
+            msg_ptr->size = size;
+            if (data_ptr != nullptr)
+            {
+                memcpy(msg_ptr->buffer, data_ptr, size);
+            }
             m_net_session_ptr->msg_queue.enqueue(msg_ptr, [this]()
             {
                 if (!m_net_session_ptr->processing)
@@ -198,7 +205,7 @@ class net_mgr::connection
                     break;
                 }
                 m_recv_size -= HEADER_LEN;
-                void * body_ptr = m_recv_buf_ptr + m_recv_size;
+                void * body_ptr = m_recv_buf_ptr + HEADER_LEN;
                 m_recv_size -= size;
                 push_msg(net_msg_queue::ENMT_Read, id, body_ptr, size);
             }
@@ -341,7 +348,7 @@ void net_mgr::_process_handler()
                 {
                     connection_ptr->write_msg(msg_ptr->id, msg_ptr->buffer, msg_ptr->size);
                 }
-                net_msg_queue::release_element(msg_ptr);
+                net_msg_queue::release(msg_ptr);
             } while (true);
         }
         usleep(16);

@@ -3,6 +3,7 @@
 
 #include "boost/version.hpp"
 #include "boost/asio.hpp"
+#include "message/hello_define.pb.h"
 
 using namespace std;
 using namespace boost::asio;
@@ -16,6 +17,9 @@ void version()
 	return;
 }
 
+#define HEADER_SIZE 4
+#define MAX_SIZE 4096
+
 void process(int i)
 {
 	cout << "thread i:" << i << endl;
@@ -28,25 +32,33 @@ void process(int i)
 		socket.connect(endpoint);
 		
 		boost::system::error_code ec;
+		
+		char *buf = (char *)malloc(MAX_SIZE);
 
-		size_t write_size = 0;
-		char *offset = NULL;
-		char *buf = (char *)malloc(12);
-		offset = buf;
+		HelloData data;
+		data.set_id(101);
+		data.add_member(111);
+		data.add_member(222);
+		data.add_member(333);
+		data.add_member(444);
+		
+		const ::google::protobuf::MessageLite &source_data = data;
+		if (!source_data.SerializePartialToArray(buf + HEADER_SIZE, MAX_SIZE))
+		{
+			return;
+		}
+		int32_t size = source_data.GetCachedSize();
+		std::cout << "size:" << size << std::endl;
+		
+		char *offset = buf;
 
-		*((uint16_t *)offset) = 101;
+		*((uint16_t *)offset) = 141;
 		offset += sizeof(uint16_t);
 
-		*((uint16_t *)offset) = 8;
+		*((uint16_t *)offset) = size;
 		offset += sizeof(uint16_t);
 
-		*((uint32_t *)offset) = 9989;
-		offset += sizeof(uint32_t);
-
-		*((uint32_t *)offset) = 2312;
-		offset += sizeof(uint32_t);
-
-		write_size = offset - buf;
+		size_t write_size = HEADER_SIZE + size;
 
 		socket.write_some(buffer(buf, write_size), ec);
 		if (ec)
@@ -74,7 +86,7 @@ void process(int i)
 
 		io_srv.run();
 
-		cout << "executor finish" << endl;
+		std::cout << "executor finish" << std::endl;
 	}
 	catch (std::exception& e)
 	{
@@ -85,7 +97,7 @@ void process(int i)
 int main()
 {
 	version();
-
+	
 	std::vector<std::thread> m_socket_threads;
     for (uint8_t i = 0; i < 10; ++i)
     {
