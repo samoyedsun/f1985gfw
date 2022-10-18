@@ -23,9 +23,9 @@ High performance game server framework and tool chain.
     ./b2 install
     popd
     
-    wget https://github.com/protocolbuffers/protobuf/releases/download/v3.20.0/protobuf-cpp-3.20.0.tar.gz
-    tar -zxvf protobuf-cpp-3.20.0.tar.gz
-    pushd protobuf-3.20.0/
+    wget https://github.com/protocolbuffers/protobuf/releases/download/v21.7/protobuf-cpp-3.21.7.tar.gz
+    tar -zxvf protobuf-cpp-3.21.7.tar.gz
+    pushd protobuf-3.21.7/
     ./autogen.sh
     ./configure --prefix=${PWD}/../dependent/protobuf
     make
