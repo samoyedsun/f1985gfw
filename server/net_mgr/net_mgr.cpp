@@ -238,7 +238,7 @@ net_mgr::~net_mgr()
 
 }
 
-const net_mgr::result_t net_mgr::startup(const std::string& ip, uint16_t port, uint8_t concurrent_num)
+const net_mgr::result_t net_mgr::startup(uint8_t threads, const std::string& ip, uint16_t port)
 {
     result_t ret;
 
@@ -270,21 +270,18 @@ const net_mgr::result_t net_mgr::startup(const std::string& ip, uint16_t port, u
         return ret.make_failure("socket listen error, " + ec.message());
     }
     
-    for (uint8_t i = 0; i < concurrent_num; ++i)
+    for (uint8_t i = 0; i < threads; ++i)
     {
         _accept_post();
-        m_socket_threads.emplace_back(&net_mgr::_work_handler, this);
+        m_socket_threads.emplace_back(&net_mgr::_sock_handler, this);
+    }
+
+    for (uint8_t i = 0; i < threads; ++i)
+    {
+        m_worker_threads.emplace_back(&net_mgr::_work_handler, this);
     }
 
     return ret;
-}
-
-void net_mgr::loop(uint8_t concurrent_num)
-{
-    for (uint8_t i = 0; i < concurrent_num; ++i)
-    {
-        m_worker_threads.emplace_back(&net_mgr::_process_handler, this);
-    }   
 }
 
 void net_mgr::release()
@@ -304,7 +301,7 @@ void net_mgr::release()
     return;
 }
 
-void net_mgr::_process_handler()
+void net_mgr::_work_handler()
 {
     while(true)
     {
@@ -355,7 +352,7 @@ void net_mgr::_process_handler()
     }
 }
 
-void net_mgr::_work_handler()
+void net_mgr::_sock_handler()
 {
     try
     {

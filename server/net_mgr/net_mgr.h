@@ -50,14 +50,13 @@ class net_mgr
 		~net_mgr();
 
 	public:
-		const result_t startup(const std::string& ip, uint16_t port, uint8_t concurrent_num);
-		void loop(uint8_t concurrent_num);
+		const result_t startup(uint8_t threads, const std::string& ip, uint16_t port);
 		void release();
 		inline void set_message_cb(message_cb_t cb) { m_message_cb = cb; };
 		
 	private:
-		void _process_handler();
 		void _work_handler();
+		void _sock_handler();
 		void _accept_post();
 		net_msg_queue *_get_msg_queue();
 		io_context &_get_context();
