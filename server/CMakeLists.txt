@@ -17,6 +17,7 @@ add_subdirectory(net_mgr)
 include_directories(
     ${PROJECT_SOURCE_DIR}/../../dependent/boost/include
     ${PROJECT_SOURCE_DIR}/../../dependent/protobuf/include
+    ${PROJECT_SOURCE_DIR}/../../dependent/json/include
 )
 link_directories(
     ${PROJECT_SOURCE_DIR}/../../dependent/boost/lib

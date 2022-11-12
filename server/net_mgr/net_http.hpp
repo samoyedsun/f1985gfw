@@ -15,6 +15,7 @@
 #include <list>
 #include <memory>
 #include <string>
+#include <functional>
 
 namespace beast = boost::beast;         // from <boost/beast.hpp>
 namespace http = beast::http;           // from <boost/beast/http.hpp>
@@ -57,35 +58,12 @@ mime_type(beast::string_view path)
     return "application/text";
 }
 
-// Append an HTTP rel-path to a local filesystem path.
-// The returned path is normalized for the platform.
-std::string
-path_cat(
-    beast::string_view base,
-    beast::string_view path)
-{
-    if(base.empty())
-        return std::string(path);
-    std::string result(base);
-#ifdef BOOST_MSVC
-    char constexpr path_separator = '\\';
-    if(result.back() == path_separator)
-        result.resize(result.size() - 1);
-    result.append(path.data(), path.size());
-    for(auto& c : result)
-        if(c == '/')
-            c = path_separator;
-#else
-    char constexpr path_separator = '/';
-    if(result.back() == path_separator)
-        result.resize(result.size() - 1);
-    result.append(path.data(), path.size());
-#endif
-    return result;
-}
-
+class net_http;
 class http_worker
 {
+    using get_process_t = std::function<std::string(beast::string_view)>;
+    using post_process_t = std::function<std::string(beast::string_view)>;
+
 public:
     http_worker(http_worker const&) = delete;
     http_worker& operator=(http_worker const&) = delete;
@@ -94,6 +72,16 @@ public:
         acceptor_(acceptor),
         doc_root_(doc_root)
     {
+    }
+
+    void set_get_process(get_process_t val)
+    {
+        get_process_ = val;
+    }
+
+    void set_post_process(post_process_t val)
+    {
+        post_process_ = val;
     }
 
     void start()
@@ -106,6 +94,9 @@ private:
     using alloc_t = fields_alloc<char>;
     //using request_body_t = http::basic_dynamic_body<beast::flat_static_buffer<1024 * 1024>>;
     using request_body_t = http::string_body;
+    
+    get_process_t get_process_;
+    post_process_t post_process_;
 
     // The acceptor used to listen for incoming connections.
     tcp::acceptor& acceptor_;
@@ -251,15 +242,9 @@ private:
 
     void on_get(beast::string_view target)
     {
-        // Build the path to the requested file
-        //std::string path = path_cat(doc_root_, target);
-        //if(target.back() == '/')
-        //  path.append("index.html");
-
-        // Attempt to open the file
-        //beast::error_code ec;
-        std::string body = "sdfdsfsd";
-
+	    beast::string_view path = target.substr(0, target.find_first_of('?')); 
+        std::string body = get_process_(path);
+        
         string_response_.emplace(
             std::piecewise_construct,
             std::make_tuple(),
@@ -268,7 +253,7 @@ private:
         string_response_->result(http::status::ok);
         string_response_->keep_alive(false);
         string_response_->set(http::field::server, "Beast");
-        string_response_->set(http::field::content_type, "text/plain");
+        string_response_->set(http::field::content_type, "application/json");
         string_response_->body() = body;
         string_response_->prepare_payload();
 
@@ -288,7 +273,33 @@ private:
 
     void on_post(beast::string_view target)
     {
+	    beast::string_view path = target.substr(0, target.find_first_of('?')); 
+        std::string body = post_process_(path);
 
+        string_response_.emplace(
+            std::piecewise_construct,
+            std::make_tuple(),
+            std::make_tuple(alloc_));
+
+        string_response_->result(http::status::ok);
+        string_response_->keep_alive(false);
+        string_response_->set(http::field::server, "Beast");
+        string_response_->set(http::field::content_type, "application/json");
+        string_response_->body() = body;
+        string_response_->prepare_payload();
+
+        string_serializer_.emplace(*string_response_);
+        
+        http::async_write(
+            socket_,
+            *string_serializer_,
+            [this](beast::error_code ec, std::size_t)
+            {
+                socket_.shutdown(tcp::socket::shutdown_send, ec);
+                string_serializer_.reset();
+                string_response_.reset();
+                accept();
+            });
     }
 
     void send_file(beast::string_view target)
@@ -373,6 +384,10 @@ private:
 class net_http
 {
     public:
+        using process_map_val_t = std::function<std::string()>;
+        using process_map_t = std::map<beast::string_view, process_map_val_t>;
+
+    public:
         net_http()
             : m_ioc{1}
             , m_acceptor(m_ioc)
@@ -415,6 +430,8 @@ class net_http
             for (int i = 0; i < workers; ++i)
             {
                 m_workers.emplace_back(m_acceptor, doc_root);
+                m_workers.back().set_get_process(std::bind(&net_http::dispatch_get, this, std::placeholders::_1));
+                m_workers.back().set_post_process(std::bind(&net_http::dispatch_post, this, std::placeholders::_1));
                 m_workers.back().start();
             }
             m_thread = std::make_shared<std::thread>([this]
@@ -428,11 +445,44 @@ class net_http
             m_thread->join();
         }
 
+    public:
+        void register_get(beast::string_view key, process_map_val_t val)
+        {
+            m_get_process_map.insert({key, val});
+        }
+
+        void register_post(beast::string_view key, process_map_val_t val)
+        {
+            m_post_process_map.insert({key, val});
+        }
+
+        std::string dispatch_get(beast::string_view key)
+        {
+            auto target_iter = m_get_process_map.find(key);
+            if (target_iter == m_get_process_map.end())
+            {
+                return "";	
+            }
+            return target_iter->second();
+        }
+
+        std::string dispatch_post(beast::string_view key)
+        {
+            auto target_iter = m_post_process_map.find(key);
+            if (target_iter == m_post_process_map.end())
+            {
+                return "";	
+            }
+            return target_iter->second();
+        }
+
     private:
         net::io_context m_ioc;
         tcp::acceptor m_acceptor;
         std::list<http_worker> m_workers;
         std::shared_ptr<std::thread> m_thread;
+        process_map_t m_get_process_map;
+        process_map_t m_post_process_map;
 };
 
 #endif

@@ -4,6 +4,7 @@
 #include "net_mgr/net_proto.hpp"
 #include "message/hello_define.pb.h"
 #include "net_mgr/net_http.hpp"
+#include "nlohmann/json.hpp"
 
 void on_message(net_mgr::message_back_cb_t back_cb, uint32_t cid, uint16_t id, const char *buffer, uint16_t size)
 {
@@ -35,16 +36,31 @@ void on_message(net_mgr::message_back_cb_t back_cb, uint32_t cid, uint16_t id, c
 	}
 }
 
-void test_net_http()
-{
-
-}
-
 int main()
 {
 	std::cout << boost_lib_version() << std::endl;
 
 	net_http http;
+	http.register_get("/test/aa", []() ->std::string
+	{
+		nlohmann::json root;
+		root["22"] = "sdfsdf==";
+		root["343"] = "sdfsdf";
+		return root.dump();
+	});
+	http.register_post("/test/aa", []() ->std::string
+	{
+		nlohmann::json data;
+		data["22"] = "sdfsdf==";
+		data["343"] = "sdfsdf";
+
+		nlohmann::json root;
+		root["id"] = 23;
+		root["type"] = 33;
+		root["data"] = data;
+		return root.dump();
+	});
+
 	net_mgr net;
 	net.set_message_cb(on_message);
 	http.startup(4, "0.0.0.0", 8080, "./");

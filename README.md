@@ -25,9 +25,18 @@ High performance game server framework and tool chain.
     
     wget https://github.com/protocolbuffers/protobuf/releases/download/v21.7/protobuf-cpp-3.21.7.tar.gz
     tar -zxvf protobuf-cpp-3.21.7.tar.gz
-    pushd protobuf-3.21.7/
+    pushd protobuf-3.21.7
     ./autogen.sh
     ./configure --prefix=${PWD}/../dependent/protobuf
+    make
+    make install
+    popd
+
+    wget https://github.com/nlohmann/json/archive/refs/tags/v3.11.1.tar.gz
+    tar -zxvf v3.11.1.tar.gz
+    pushd json-3.11.1
+    mkdir build && cd build
+    cmake -DCMAKE_INSTALL_PREFIX=${PWD}/../../dependent/json ../
     make
     make install
     popd
