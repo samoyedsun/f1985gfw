@@ -40,24 +40,83 @@ int main()
 {
 	std::cout << boost_lib_version() << std::endl;
 
+	std::map<std::string, std::string> accounts;
+
 	net_http http;
-	http.register_get("/test/aa", []() ->std::string
+	http.register_post("/user/register-user", [&accounts](std::string_view body) ->std::string
 	{
-		nlohmann::json root;
-		root["22"] = "sdfsdf==";
-		root["343"] = "sdfsdf";
+		struct
+		{
+			std::string nickname;
+			std::string password;
+			void from_json(const nlohmann::json& j)
+			{
+				j.at("nickname").get_to(this->nickname);
+				j.at("password").get_to(this->password);
+			}
+		} req_data;
+		nlohmann::json res_body;
+		try
+		{
+			nlohmann::json req_body = nlohmann::json::parse(body.data());
+			req_data.from_json(req_body);
+		}
+		catch(std::exception& e)
+		{
+			res_body["result"] = "fail";
+			res_body["error"] = e.what();
+			return res_body.dump();
+		}
+
+		if (accounts.find(req_data.nickname) != accounts.end())
+		{
+			res_body["result"] = "fail";
+			res_body["error"] = "it is already registered.";
+			return root.dump();
+		}
+		accounts.insert({req_data.nickname, req_data.password});
+
+		res_body["result"] = "succ";
 		return root.dump();
 	});
-	http.register_post("/test/aa", []() ->std::string
+	http.register_post("/user/login-user", [&accounts](std::string_view body) ->std::string
 	{
-		nlohmann::json data;
-		data["22"] = "sdfsdf==";
-		data["343"] = "sdfsdf";
+		struct
+		{
+			std::string nickname;
+			std::string password;
+			void from_json(const nlohmann::json& j)
+			{
+				j.at("nickname").get_to(this->nickname);
+				j.at("password").get_to(this->password);
+			}
+		} req_data;
+		nlohmann::json res_body;
+		try
+		{
+			nlohmann::json req_body = nlohmann::json::parse(body.data());
+			req_data.from_json(req_body);
+		}
+		catch(std::exception& e)
+		{
+			res_body["result"] = "fail";
+			res_body["error"] = e.what();
+			return res_body.dump();
+		}
 
-		nlohmann::json root;
-		root["id"] = 23;
-		root["type"] = 33;
-		root["data"] = data;
+		if (accounts.find(req_data.nickname) == accounts.end())
+		{
+			res_body["result"] = "fail";
+			res_body["error"] = "account not exists.";
+			return root.dump();
+		}
+		if (accounts[req_data.nickname] != req_data.password)
+		{
+			res_body["result"] = "fail";
+			res_body["error"] = "password error.";
+			return root.dump();
+		}
+		res_body["result"] = "succ";
 		return root.dump();
 	});
 

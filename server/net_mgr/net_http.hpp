@@ -1,7 +1,6 @@
 #ifndef _NET_HTTP_H_
 #define _NET_HTTP_H_
 
-
 #include "fields_alloc.hpp"
 
 #include <boost/beast/core.hpp>
@@ -61,8 +60,8 @@ mime_type(beast::string_view path)
 class net_http;
 class http_worker
 {
-    using get_process_t = std::function<std::string(beast::string_view)>;
-    using post_process_t = std::function<std::string(beast::string_view)>;
+    using get_process_t = std::function<std::string(beast::string_view, std::string_view)>;
+    using post_process_t = std::function<std::string(beast::string_view, std::string_view)>;
 
 public:
     http_worker(http_worker const&) = delete;
@@ -194,10 +193,10 @@ private:
         switch (req.method())
         {
         case http::verb::get:
-            on_get(req.target());
+            on_get(req);
             break;
         case http::verb::post:
-            on_post(req.target());
+            on_post(req);
             break;
 
         default:
@@ -240,10 +239,11 @@ private:
             });
     }
 
-    void on_get(beast::string_view target)
+    void on_get(http::request<request_body_t, http::basic_fields<alloc_t>> const& req)
     {
-	    beast::string_view path = target.substr(0, target.find_first_of('?')); 
-        std::string body = get_process_(path);
+	    beast::string_view path = req.target().substr(0, req.target().find_first_of('?'));
+        std::string_view req_body = req.body(); // url param to json.
+        std::string res_body = get_process_(path, req_body);
         
         string_response_.emplace(
             std::piecewise_construct,
@@ -254,7 +254,7 @@ private:
         string_response_->keep_alive(false);
         string_response_->set(http::field::server, "Beast");
         string_response_->set(http::field::content_type, "application/json");
-        string_response_->body() = body;
+        string_response_->body() = res_body;
         string_response_->prepare_payload();
 
         string_serializer_.emplace(*string_response_);
@@ -271,10 +271,11 @@ private:
             });
     }
 
-    void on_post(beast::string_view target)
+    void on_post(http::request<request_body_t, http::basic_fields<alloc_t>> const& req)
     {
-	    beast::string_view path = target.substr(0, target.find_first_of('?')); 
-        std::string body = post_process_(path);
+	    beast::string_view path = req.target().substr(0, req.target().find_first_of('?'));
+        std::string_view req_body = req.body(); 
+        std::string res_body = post_process_(path, req_body);
 
         string_response_.emplace(
             std::piecewise_construct,
@@ -285,7 +286,7 @@ private:
         string_response_->keep_alive(false);
         string_response_->set(http::field::server, "Beast");
         string_response_->set(http::field::content_type, "application/json");
-        string_response_->body() = body;
+        string_response_->body() = res_body;
         string_response_->prepare_payload();
 
         string_serializer_.emplace(*string_response_);
@@ -384,7 +385,7 @@ private:
 class net_http
 {
     public:
-        using process_map_val_t = std::function<std::string()>;
+        using process_map_val_t = std::function<std::string(std::string_view)>;
         using process_map_t = std::map<beast::string_view, process_map_val_t>;
 
     public:
@@ -430,8 +431,8 @@ class net_http
             for (int i = 0; i < workers; ++i)
             {
                 m_workers.emplace_back(m_acceptor, doc_root);
-                m_workers.back().set_get_process(std::bind(&net_http::dispatch_get, this, std::placeholders::_1));
-                m_workers.back().set_post_process(std::bind(&net_http::dispatch_post, this, std::placeholders::_1));
+                m_workers.back().set_get_process(std::bind(&net_http::dispatch_get, this, std::placeholders::_1, std::placeholders::_2));
+                m_workers.back().set_post_process(std::bind(&net_http::dispatch_post, this, std::placeholders::_1, std::placeholders::_2));
                 m_workers.back().start();
             }
             m_thread = std::make_shared<std::thread>([this]
@@ -456,24 +457,24 @@ class net_http
             m_post_process_map.insert({key, val});
         }
 
-        std::string dispatch_get(beast::string_view key)
+        std::string dispatch_get(beast::string_view key, std::string_view body)
         {
             auto target_iter = m_get_process_map.find(key);
             if (target_iter == m_get_process_map.end())
             {
                 return "";	
             }
-            return target_iter->second();
+            return target_iter->second(body);
         }
 
-        std::string dispatch_post(beast::string_view key)
+        std::string dispatch_post(beast::string_view key, std::string_view body)
         {
             auto target_iter = m_post_process_map.find(key);
             if (target_iter == m_post_process_map.end())
             {
                 return "";	
             }
-            return target_iter->second();
+            return target_iter->second(body);
         }
 
     private:
