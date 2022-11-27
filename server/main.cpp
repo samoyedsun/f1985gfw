@@ -64,20 +64,27 @@ int main()
 		catch(std::exception& e)
 		{
 			res_body["result"] = "fail";
-			res_body["error"] = e.what();
+			res_body["msg"] = e.what();
 			return res_body.dump();
 		}
 
 		if (accounts.find(req_data.nickname) != accounts.end())
 		{
 			res_body["result"] = "fail";
-			res_body["error"] = "it is already registered.";
-			return root.dump();
+			res_body["msg"] = "it is already registered.";
+			return res_body.dump();
 		}
 		accounts.insert({req_data.nickname, req_data.password});
 
 		res_body["result"] = "succ";
-		return root.dump();
+		res_body["msg"] = "register success.";
+		nlohmann::json res_body_data;
+		res_body_data["id"] = 18;
+		res_body_data["nickname"] = req_data.nickname;
+		res_body_data["password"] = req_data.password;
+		res_body_data["kills"] = 0;
+		res_body["data"] = res_body_data;
+		return res_body.dump();
 	});
 	http.register_post("/user/login-user", [&accounts](std::string_view body) ->std::string
 	{
@@ -107,17 +114,24 @@ int main()
 		if (accounts.find(req_data.nickname) == accounts.end())
 		{
 			res_body["result"] = "fail";
-			res_body["error"] = "account not exists.";
-			return root.dump();
+			res_body["msg"] = "account not exists.";
+			return res_body.dump();
 		}
 		if (accounts[req_data.nickname] != req_data.password)
 		{
 			res_body["result"] = "fail";
-			res_body["error"] = "password error.";
-			return root.dump();
+			res_body["msg"] = "password error.";
+			return res_body.dump();
 		}
 		res_body["result"] = "succ";
-		return root.dump();
+		res_body["msg"] = "login success.";
+		nlohmann::json res_body_data;
+		res_body_data["id"] = 18;
+		res_body_data["nickname"] = req_data.nickname;
+		res_body_data["password"] = req_data.password;
+		res_body_data["kills"] = 0;
+		res_body["data"] = res_body_data;
+		return res_body.dump();
 	});
 
 	net_mgr net;
