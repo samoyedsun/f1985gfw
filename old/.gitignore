@@ -1,0 +1,4 @@
+/client/build
+/server/build
+*.pb.cc
+*.pb.h

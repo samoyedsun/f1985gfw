@@ -1,115 +1,127 @@
-#include <iostream>
-#include <thread>
+#include "hello.pb.h"
+#include "../source/common.hpp"
 
-#include "boost/version.hpp"
-#include "boost/asio.hpp"
-#include "message/hello_define.pb.h"
-
-using namespace std;
-using namespace boost::asio;
-
-void version()
+#ifdef __cplusplus
+extern "C"
 {
-	cout << "BOOST VERSION : "
-		<< BOOST_VERSION / 100000 << "."
-		<< BOOST_VERSION / 100 % 1000 << "."
-		<< BOOST_VERSION % 100 << endl;
-	return;
+#endif
+#include <lua.h>
+#include <lualib.h>
+#ifdef __cplusplus
+}
+#endif
+
+#define RPC_Hello 10000
+
+static void* l_alloc(void* ud, void* ptr, size_t osize,
+    size_t nsize) {
+    (void)ud;  (void)osize;  /* not used */
+    if (nsize == 0) {
+        free(ptr);
+        return NULL;
+    }
+    else
+        return realloc(ptr, nsize);
 }
 
-#define HEADER_SIZE 4
-#define MAX_SIZE 4096
-
-void process(int i)
+class world
 {
-	cout << "thread i:" << i << endl;
-	try
-	{
-		io_service io_srv;
-		ip::tcp::socket socket(io_srv);
+    using timer_umap_t = std::unordered_map<int32_t, boost::asio::deadline_timer*>;
 
-		ip::tcp::endpoint endpoint(ip::address::from_string("127.0.0.1"), 19850);
-		socket.connect(endpoint);
-		
-		boost::system::error_code ec;
-		
-		char *buf = (char *)malloc(MAX_SIZE);
-
-		HelloData data;
-		data.set_id(101);
-		data.add_member(111);
-		data.add_member(222);
-		data.add_member(333);
-		data.add_member(444);
-		
-		const ::google::protobuf::MessageLite &source_data = data;
-		if (!source_data.SerializePartialToArray(buf + HEADER_SIZE, MAX_SIZE))
-		{
-			return;
-		}
-		int32_t size = source_data.GetCachedSize();
-		std::cout << "size:" << size << std::endl;
-		
-		char *offset = buf;
-
-		*((uint16_t *)offset) = 141;
-		offset += sizeof(uint16_t);
-
-		*((uint16_t *)offset) = size;
-		offset += sizeof(uint16_t);
-
-		size_t write_size = HEADER_SIZE + size;
-
-		socket.write_some(buffer(buf, write_size), ec);
-		if (ec)
-		{
-			throw boost::system::system_error(ec);
-		}
-		std::cout << "send finish" << std::endl;
-		socket.read_some(boost::asio::buffer(buf, 12), ec);
-		if (ec)
-		{
-			throw boost::system::system_error(ec);
-		}
-		std::cout << "recv finish" << std::endl;
-
-		socket.shutdown(ip::tcp::socket::shutdown_both, ec);
-		if (ec)
-		{
-			throw boost::system::system_error(ec);
-		}
-		socket.close(ec);
-		if (ec)
-		{
-			throw boost::system::system_error(ec);
-		}
-
-		io_srv.run();
-
-		std::cout << "executor finish" << std::endl;
-	}
-	catch (std::exception& e)
-	{
-		cout << "异常:" << e.what() << endl;
-	}
-}
-
-int main()
-{
-	version();
-	
-	std::vector<std::thread> m_socket_threads;
-    for (uint8_t i = 0; i < 10; ++i)
+public:
+    world()
+        : m_net_worker(m_context)
+        , m_console_reader(m_context)
+        , m_timer(m_context, boost::posix_time::milliseconds(1))
+        , m_lua_vm(nullptr)
     {
-        m_socket_threads.emplace_back([i](){
-			process(i);
-		});
+        m_lua_vm = lua_newstate(l_alloc, NULL);
+        luaL_openlibs(m_lua_vm);
+
+        m_net_worker.init(m_context, 1024 * 1024, 5, 100);
+        m_net_worker.push_bullet(m_context, "game", "127.0.0.1", 55890);
+        m_net_worker.register_msg(RPC_Hello, [this](int32_t pointer_id, void* data_ptr, int32_t size)
+            {
+                Hello data;
+                if (!data.ParsePartialFromArray(data_ptr, size))
+                {
+                    return false;
+                }
+                std::cout << "recive " << data.member(0) << " msg abot 10000==" << data.id() << std::endl;
+
+                // process some logic.
+                //SEND_GUARD(pointer_id, RPC_Hello, m_net_worker, Hello);
+                //msg.set_id(500);
+                //msg.add_member(7878);
+
+                return true;
+            });
+        m_net_worker.shoot();
+        m_console_reader.start();
+        m_timer.async_wait(boost::bind(&world::loop, this, boost::asio::placeholders::error));
     }
 
-    for (uint8_t i = 0; i < 10; ++i)
+    void run()
     {
-        m_socket_threads[i].join();
+        m_context.run();
+        lua_close(m_lua_vm);
     }
 
-	return 0;
+private:
+    void loop(const boost::system::error_code& ec)
+    {
+        if (ec)
+        {
+            std::cout << "loop failed:" << ec.message() << std::endl;
+            return;
+        }
+        auto begin_tick = boost::asio::chrono::steady_clock::now();
+        run_once();
+        auto end_tick = boost::asio::chrono::steady_clock::now();
+        uint32_t spend_tick = static_cast<uint32_t>((end_tick - begin_tick).count() / 1000 / 1000);
+        //std::cout << "loop one times. spend_tick:" << spend_tick << std::endl;
+        if (spend_tick < tick_interval)
+        {
+            int32_t tick = tick_interval - spend_tick;
+            m_timer.expires_from_now(boost::posix_time::milliseconds(tick));
+        }
+        else
+        {
+            m_timer.expires_from_now(boost::posix_time::milliseconds(1));
+        }
+        m_timer.async_wait(boost::bind(&world::loop, this, boost::asio::placeholders::error));
+    }
+
+    void run_once()
+    {
+        {
+            console_reader::command cmd;
+            if (m_console_reader.pop_front(cmd))
+            {
+                if (cmd.name == "hello")
+                {
+                    // This number needs to be obtained through an interface that passes in the name
+                    SEND_GUARD(1, RPC_Hello, m_net_worker, Hello);
+                    msg.set_id(100);
+                    msg.add_member(3434);
+                }
+            }
+        }
+    }
+
+    static const int32_t tick_interval = 16;
+
+private:
+    boost::asio::io_context m_context;
+    net_worker m_net_worker;
+    console_reader m_console_reader;
+    boost::asio::deadline_timer m_timer;
+    lua_State* m_lua_vm;
+};
+
+int main(int argc, char *argv[])
+{
+    world w;
+    w.run();
+    return 0;
 }

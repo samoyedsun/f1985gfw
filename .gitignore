@@ -1,4 +1,12 @@
-/client/build
-/server/build
-*.pb.cc
-*.pb.h
+# Xmake cache
+.vscode/
+.xmake/
+build/
+vsxmake2022/
+client/bin
+server/bin
+
+# MacOS Cache
+.DS_Store
+
+
