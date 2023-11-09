@@ -1,4 +1,5 @@
-#include "hello.pb.h"
+#include "common.pb.h"
+#include "enum_define.pb.h"
 #include "../source/common.hpp"
 
 #ifdef __cplusplus
@@ -40,9 +41,9 @@ public:
 
         m_net_worker.init(m_context, 1024 * 1024, 5, 100);
         m_net_worker.push_bullet(m_context, "game", "127.0.0.1", 55890);
-        m_net_worker.register_msg(RPC_Hello, [this](int32_t pointer_id, void* data_ptr, int32_t size)
+        m_net_worker.register_msg(EnumDefine::EMsgCmd::EMC_S2C_Hello, [this](int32_t pointer_id, void* data_ptr, int32_t size)
             {
-                Hello data;
+                S2C_Hello data;
                 if (!data.ParsePartialFromArray(data_ptr, size))
                 {
                     return false;
@@ -50,7 +51,7 @@ public:
                 std::cout << "recive " << data.member(0) << " msg abot 10000==" << data.id() << std::endl;
 
                 // process some logic.
-                //SEND_GUARD(pointer_id, RPC_Hello, m_net_worker, Hello);
+                //SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_C2S_Hello, net_worker, m_net_worker, C2S_Hello);
                 //msg.set_id(500);
                 //msg.add_member(7878);
 
@@ -101,7 +102,7 @@ private:
                 if (cmd.name == "hello")
                 {
                     // This number needs to be obtained through an interface that passes in the name
-                    SEND_GUARD(1, RPC_Hello, m_net_worker, Hello);
+                    SEND_GUARD(1, EnumDefine::EMsgCmd::EMC_C2S_Hello, net_worker, m_net_worker, C2S_Hello);
                     msg.set_id(100);
                     msg.add_member(3434);
                 }

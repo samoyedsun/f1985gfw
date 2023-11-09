@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package EnumDefine;
+
+enum EMsgCmd
+{
+    EMC_C2S_Enter = 0;
+    EMC_S2C_Enter = 1;
+    EMC_C2S_Hello = 10000;
+    EMC_S2C_Hello = 10001;
+}
+
+enum EErrorCode
+{
+	EEC_Success				= 0;	// 成功
+	EEC_Failed				= 1;	// 失败
+    
+	EEC_InvalidWorldID		= 2;	// 非法的world id
+	EEC_OtherDeviceLogin	= 3;	// 您的帐号已在其他设备上登录
+	EEC_NoActor				= 4;	// 没有角色
+	EEC_StatusError			= 5;	// 状态错误
+	EEC_DBError				= 6;	// 数据库错误
+	EEC_PBError				= 7;	// PB序列化错误
+	EEC_MemError			= 8;	// 内存错误
+	EEC_AccountHasExist		= 9;	// 该帐号已存在
+	EEC_GenderInvalid		= 10;	// 性别错误
+	EEC_NameTooLength		= 11;	// 角色名字过长
+	EEC_ServerFull			= 12;	// 服务器已满
+	EEC_NameInUse			= 13;	// 名字已存在
+	EEC_InvaildName			= 14;	// 注册名字包含敏感字
+	EEC_MailNotAffix		= 15;	// 没有可以领取的附件
+	EEC_MailNotExist		= 16;	// 邮件已领取
+	EEC_PlatformKeyError	= 17;	// 平台key校验失败
+	EEC_PlatformAuthFailed	= 18;	// 平台校验失败
+	EEC_ServerMaintenance	= 19;	// 服务器维护中
+	EEC_PlatformTimedout	= 20;	// 平台维护中
+	EEC_ParaErr				= 21;	// 参数错误
+	EEC_ConfigErr			= 22;	// 策划配置错误
+	EEC_BanPlayerID			= 23;	// 禁止登陆, 请联系管理员
+	EEC_TokenExpire			= 24;	// token已过期
+	EEC_InvalidChannel		= 25;	// 非法的渠道
+	EEC_BanAccount			= 26;	// 该账号已被查封
+	EEC_BanIp				= 27;	// 该IP已被查封
+	EEC_ShutDown			= 28;	// 关服
+	EEC_InvaildChar			= 29;	// 非法字符
+	EEC_NameTooShort		= 30;	// 名字太短
+	EEC_BinToolOld  		= 31;	// 您当前的游戏版本过低，请到官网下载最新版本
+	EEC_GetOrderErr         = 32;   // 获取订单号失败
+	EEC_ProfessionInvalid	= 33;	// 职业错误
+	EEC_RechargeLimit		= 34;	// 充值限制
+}

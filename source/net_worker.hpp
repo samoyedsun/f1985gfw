@@ -6,9 +6,14 @@
 #include <unordered_map>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
+#include <boost/beast.hpp>
+#include <boost/beast/websocket.hpp>
 #include "data_packet.hpp"
 
 using boost::asio::ip::tcp;
+namespace beast = boost::beast;
+namespace http = beast::http;
+namespace websocket = beast::websocket;
 
 class net_worker
 {
@@ -369,6 +374,311 @@ private:
     tcp::acceptor m_acceptor;
     int32_t m_max_recv_size;
     uint16_t m_reconnect_interval;
+    std::unordered_map<int32_t, msg_handler> m_msg_handler_umap;
+};
+
+class ws_worker
+{
+    class pointer
+    {
+        enum ENET_STATUS
+        {
+            ENET_STATUS_UNCONNECT,
+            ENET_STATUS_WAITING,
+            ENET_STATUS_CONNECTED,
+        };
+    public:
+        pointer(boost::asio::io_context& io_context)
+            : m_owner_ptr(nullptr)
+            , m_id(0)
+            , m_socket(io_context)
+            , m_ws_ptr(nullptr)
+            , m_recv_buf_ptr(nullptr)
+            , m_recv_size(0)
+            , m_status(ENET_STATUS_UNCONNECT)
+        {
+        }
+
+        ~pointer()
+        {
+            free(m_recv_buf_ptr);
+        }
+
+        void init(int32_t id, ws_worker* owner_ptr)
+        {
+            m_id = id;
+            m_owner_ptr = owner_ptr;
+            m_recv_buf_ptr = malloc(m_owner_ptr->max_recv_size());
+        }
+
+        void start()
+        {
+            m_status = ENET_STATUS_CONNECTED;
+            m_ws_ptr = new websocket::stream<beast::tcp_stream>(std::move(m_socket));
+            m_ws_ptr->binary(true);
+            m_ws_ptr->set_option(websocket::stream_base::decorator(
+                [](websocket::response_type& res) {
+                    res.set(http::field::server,
+                    std::string(BOOST_BEAST_VERSION_STRING) +
+                    " websocket-server-sync");
+                }));
+            m_ws_ptr->accept();
+            read_start();
+        }
+
+        bool valid()
+        {
+            return m_status == ENET_STATUS_UNCONNECT;
+        }
+
+        void set_waiting()
+        {
+            m_status = ENET_STATUS_WAITING;
+            if (m_socket.is_open())
+            {
+                m_socket.close();
+            }
+        }
+
+        void set_unconnect()
+        {
+            m_status = ENET_STATUS_UNCONNECT;
+            if (m_socket.is_open())
+            {
+                m_socket.close();
+                if (m_ws_ptr)
+                {
+                    delete m_ws_ptr;
+                    m_ws_ptr = nullptr;
+                }
+            }
+        }
+
+        int32_t id()
+        {
+            return m_id;
+        }
+
+        tcp::socket& socket()
+        {
+            return m_socket;
+        }
+
+        bool send(uint16_t msg_id, char* data_ptr, uint16_t size)
+        {
+            if (m_status != ENET_STATUS_CONNECTED)
+            {
+                std::cout << "Have not connected success!" << std::endl;
+                return false;
+            }
+            try
+            {
+                data_packet data_packet;
+                data_packet << msg_id;
+                data_packet << size;
+                data_packet.write_data(data_ptr, size);
+                m_ws_ptr->write(boost::asio::buffer(data_packet.get_mem_ptr(), data_packet.size()));
+            }
+            catch (const std::exception& e)
+            {
+                std::cerr << "Error: " << e.what() << std::endl;
+            }
+            return true;
+        }
+
+    private:
+        void read_start()
+        {
+            void* offset_ptr = (void*)((int8_t*)m_recv_buf_ptr + m_recv_size);
+            int32_t left_size = m_owner_ptr->max_recv_size() - m_recv_size;
+            m_ws_ptr->async_read_some(boost::asio::buffer(offset_ptr, left_size),
+                [this](const boost::system::error_code& ec, std::size_t bytes_transferred)
+                {
+                    if (ec || bytes_transferred == 0)
+                    {
+                        std::cout << "data :" << ec.message() << std::endl;
+                        return m_owner_ptr->close(m_id);
+                    }
+            m_recv_size += static_cast<int32_t>(bytes_transferred);
+            parse_data(bytes_transferred);
+            read_start();
+                });
+        }
+
+        void parse_data(size_t bytes_transferred)
+        {
+            if (m_recv_size < 4)
+            {
+                std::cout << "data package too short, recv_size:" << m_recv_size
+                    << ", bytes_transferred:" << bytes_transferred << std::endl;
+                m_owner_ptr->close(m_id);
+            }
+            do
+            {
+                void* offset_ptr = m_recv_buf_ptr;
+                uint16_t msg_id = *(uint16_t*)offset_ptr;
+                offset_ptr = (void*)((int8_t*)offset_ptr + 2);
+                uint16_t body_size = *(uint16_t*)offset_ptr;
+                offset_ptr = (void*)((int8_t*)offset_ptr + 2);
+                void* body_ptr = offset_ptr;
+                offset_ptr = (void*)((int8_t*)offset_ptr + body_size);
+                uint32_t package_size = body_size + sizeof(msg_id) + sizeof(body_size);
+                if (package_size > m_recv_size)
+                {
+                    std::cout << "not enough to read, package_size:" << package_size
+                        << ", m_recv_size:" << m_recv_size << std::endl;
+                    break;
+                }
+                if (!m_owner_ptr->parse_msg(m_id, msg_id, body_ptr, body_size))
+                {
+                    std::cout << "parse msg error, msg_id:" << msg_id
+                        << " size:" << body_size << std::endl;
+                    m_owner_ptr->close(m_id);
+                    return;
+                }
+                m_recv_size -= package_size;
+                if (m_recv_size > 0)
+                {
+                    memcpy(m_recv_buf_ptr, offset_ptr, m_recv_size);
+                }
+            } while (m_recv_size >= 4);
+        }
+
+    private:
+        ws_worker* m_owner_ptr;
+        int32_t m_id;
+        tcp::socket m_socket;
+        websocket::stream<beast::tcp_stream>* m_ws_ptr;
+        void* m_recv_buf_ptr;
+        int32_t m_recv_size;
+        ENET_STATUS m_status;
+    };
+
+    using pointer_ptr = std::unique_ptr<pointer>;
+    using msg_handler = std::function<bool(int32_t, void*, uint16_t)>;
+
+public:
+    ws_worker(boost::asio::io_context& context)
+        : m_acceptor(context)
+        , m_max_recv_size(0)
+    {
+    }
+
+    void init(boost::asio::io_context& context, int32_t max_recv_size = 1024 * 1024, uint16_t pointer_num = 10)
+    {
+        m_max_recv_size = max_recv_size;
+        for (int32_t id = 1; id <= pointer_num; ++id)
+        {
+            m_pointer_ptr_umap[id] = std::make_unique<pointer>(context);
+            m_pointer_ptr_umap[id]->init(id, this);
+        }
+    }
+
+    int32_t max_recv_size()
+    {
+        return m_max_recv_size;
+    }
+
+    void open(int32_t port)
+    {
+        tcp::endpoint endpoint(boost::asio::ip::address_v4::from_string("0.0.0.0"), port);
+        boost::system::error_code ec;
+        m_acceptor.open(endpoint.protocol(), ec);
+        if (ec)
+        {
+            std::cerr << "socket open error, " << ec.message() << std::endl;
+            return;
+        }
+        m_acceptor.set_option(boost::asio::ip::tcp::acceptor::reuse_address(true), ec);
+        if (ec)
+        {
+            std::cerr << "set_option reuse_address error, " << ec.message() << std::endl;
+            return;
+        }
+        m_acceptor.bind(endpoint, ec);
+        if (ec)
+        {
+            std::cerr << "socket bind error, " << ec.message() << std::endl;
+            return;
+        }
+        m_acceptor.listen(boost::asio::socket_base::max_connections, ec);
+        if (ec)
+        {
+            std::cerr << "socket listen error, " << ec.message() << std::endl;
+            return;
+        }
+        start_accept();
+    }
+
+    void close(int32_t pointer_id)
+    {
+        m_pointer_ptr_umap[pointer_id]->set_unconnect();
+        std::cout << "socket close, pointer_id:" << pointer_id << std::endl;
+    }
+
+    bool parse_msg(int32_t pointer_id, uint16_t msg_id, void* data_ptr, uint16_t size)
+    {
+        auto msg_handler_it = m_msg_handler_umap.find(msg_id);
+        if (msg_handler_it == m_msg_handler_umap.end())
+        {
+            return false;
+        }
+        return msg_handler_it->second(pointer_id, data_ptr, size);
+    }
+    
+    void register_msg(uint16_t msg_id, msg_handler msg_handler)
+    {
+        m_msg_handler_umap.try_emplace(msg_id, msg_handler);
+    }
+
+    bool send(int32_t pointer_id, uint16_t msg_id, char* data_ptr, uint16_t size)
+    {
+        auto pointer_ptr_it = m_pointer_ptr_umap.find(pointer_id);
+        if (pointer_ptr_it == m_pointer_ptr_umap.end())
+        {
+            return false;
+        }
+        return pointer_ptr_it->second->send(msg_id, data_ptr, size);
+    }
+
+private:
+    void start_accept()
+    {
+        int32_t pointer_id = pop_pointer();
+        m_acceptor.async_accept(m_pointer_ptr_umap[pointer_id]->socket(),
+            [this, pointer_id](const boost::system::error_code& ec)
+            {
+                if (!ec)
+                {
+                    std::cout << "Accepted connection from "
+                        << m_pointer_ptr_umap[pointer_id]->socket().remote_endpoint().address().to_string() << std::endl;
+                    m_pointer_ptr_umap[pointer_id]->start();
+                }
+                else
+                {
+                    std::cout << "Accept failed:" << ec.message() << std::endl;
+                }
+        start_accept();
+            });
+    }
+
+    int32_t pop_pointer()
+    {
+        for (auto iter = m_pointer_ptr_umap.begin(); iter != m_pointer_ptr_umap.end(); ++iter)
+        {
+            if (iter->second->valid())
+            {
+                iter->second->set_waiting();
+                return iter->second->id();
+            }
+        }
+        return 0;
+    }
+
+private:
+    std::unordered_map<int32_t, pointer_ptr> m_pointer_ptr_umap;
+    tcp::acceptor m_acceptor;
+    int32_t m_max_recv_size;
     std::unordered_map<int32_t, msg_handler> m_msg_handler_umap;
 };
 
