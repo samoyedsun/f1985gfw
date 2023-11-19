@@ -471,18 +471,11 @@ class ws_worker
                 std::cout << "Have not connected success!" << std::endl;
                 return false;
             }
-            try
-            {
-                data_packet data_packet;
-                data_packet << msg_id;
-                data_packet << size;
-                data_packet.write_data(data_ptr, size);
-                m_ws_ptr->write(boost::asio::buffer(data_packet.get_mem_ptr(), data_packet.size()));
-            }
-            catch (const std::exception& e)
-            {
-                std::cerr << "Error: " << e.what() << std::endl;
-            }
+            data_packet data_packet;
+            data_packet << msg_id;
+            data_packet << size;
+            data_packet.write_data(data_ptr, size);
+            m_ws_ptr->write(boost::asio::buffer(data_packet.get_mem_ptr(), data_packet.size()));
             return true;
         }
 
@@ -556,6 +549,7 @@ class ws_worker
 
     using pointer_ptr = std::unique_ptr<pointer>;
     using msg_handler = std::function<bool(int32_t, void*, uint16_t)>;
+	using other_handler = std::function<void(int32_t)>;
 
 public:
     ws_worker(boost::asio::io_context& context)
@@ -614,6 +608,7 @@ public:
     {
         m_pointer_ptr_umap[pointer_id]->set_unconnect();
         std::cout << "socket close, pointer_id:" << pointer_id << std::endl;
+        m_disconnect_handler(pointer_id);
     }
 
     bool parse_msg(int32_t pointer_id, uint16_t msg_id, void* data_ptr, uint16_t size)
@@ -626,9 +621,19 @@ public:
         return msg_handler_it->second(pointer_id, data_ptr, size);
     }
     
-    void register_msg(uint16_t msg_id, msg_handler msg_handler)
+    void on_connect(other_handler handler)
     {
-        m_msg_handler_umap.try_emplace(msg_id, msg_handler);
+        m_connect_handler = handler;
+    }
+
+    void on_msg(uint16_t msg_id, msg_handler handler)
+    {
+        m_msg_handler_umap.try_emplace(msg_id, handler);
+    }
+
+    void on_disconnect(other_handler handler)
+    {
+        m_disconnect_handler = handler;
     }
 
     bool send(int32_t pointer_id, uint16_t msg_id, char* data_ptr, uint16_t size)
@@ -653,6 +658,7 @@ private:
                     std::cout << "Accepted connection from "
                         << m_pointer_ptr_umap[pointer_id]->socket().remote_endpoint().address().to_string() << std::endl;
                     m_pointer_ptr_umap[pointer_id]->start();
+                    m_connect_handler(pointer_id);
                 }
                 else
                 {
@@ -680,6 +686,8 @@ private:
     tcp::acceptor m_acceptor;
     int32_t m_max_recv_size;
     std::unordered_map<int32_t, msg_handler> m_msg_handler_umap;
+    other_handler m_connect_handler;
+    other_handler m_disconnect_handler;
 };
 
 #endif
