@@ -35,7 +35,13 @@ private:
     data_packet m_data_packet;
 };
 
-#define SEND_GUARD(POINTER_ID, MSG_ID, NET_TYPE, NET_WORKER, MSG_TYPE) MSG_TYPE msg; \
-	msg_send_guard<NET_TYPE> send_guard(POINTER_ID, MSG_ID, NET_WORKER, msg)
+#define SEND_GUARD(POINTER_ID, MSG_ID, NET_TYPE, NET_WORKER, NAME) NAME reply; \
+	msg_send_guard<NET_TYPE> send_guard(POINTER_ID, MSG_ID, NET_WORKER, reply)
+
+#define RECV_PRASE(MSG_PTR, NAME, MSG_SIZE) \
+	NAME msg; \
+	if (!msg.ParsePartialFromArray(MSG_PTR, MSG_SIZE)) \
+	{ return false; } 
+
 
 #endif

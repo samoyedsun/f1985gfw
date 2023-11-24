@@ -6,8 +6,6 @@
 struct lua_State;
 class engine
 {
-    using timer_umap_t = std::unordered_map<int32_t, boost::asio::deadline_timer*>;
-
 public:
     engine();
     void run();
@@ -26,5 +24,7 @@ private:
     boost::asio::deadline_timer m_timer;
     lua_State* m_lua_vm;
 };
+
+extern engine g_engine;
 
 #endif

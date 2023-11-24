@@ -44,15 +44,11 @@ engine::engine()
         });
     m_net_worker.on_msg(EnumDefine::EMsgCmd::EMC_C2S_Enter, [this](int32_t pointer_id, void* data_ptr, int32_t size)
         {
-            C2S_Enter data;
-            if (!data.ParsePartialFromArray(data_ptr, size))
-            {
-                return false;
-            }
-            std::cout << " msg abot id:" << data.id() << ", token:" << data.token() << std::endl;
+            RECV_PRASE(data_ptr, C2S_Enter, size);
+            std::cout << " msg abot id:" << msg.id() << ", token:" << msg.token() << std::endl;
             // process some logic.
             SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_S2C_Enter, ws_worker, m_net_worker, S2C_Enter);
-            msg.set_result(EnumDefine::EErrorCode::EEC_Success);
+            reply.set_result(EnumDefine::EErrorCode::EEC_Success);
             // 通过ID查找对应的session数据
             // 如果没查到，那创建session并初始化为登录状态
             // 如果查到了，发现是离线状态那就更新为登录状态
@@ -109,8 +105,8 @@ void engine::run_once()
             {
                 // This number needs to be obtained through an interface that passes in the name
                 SEND_GUARD(EnumDefine::EMsgCmd::EMC_S2C_Hello, EnumDefine::EMsgCmd::EMC_S2C_Hello, ws_worker, m_net_worker, S2C_Hello);
-                msg.set_id(100);
-                msg.add_member(3434);
+                reply.set_id(100);
+                reply.add_member(3434);
             }
             if (cmd.name == "refresh")
             {
@@ -204,3 +200,5 @@ void engine::init_script()
         lua_pop(m_lua_vm, 1);
     }
 }
+
+engine g_engine;

@@ -2,7 +2,6 @@
 
 int main()
 {
-    engine e;
-    e.run();
+    g_engine.run();
     return 0;
 }

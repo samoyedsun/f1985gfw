@@ -27,8 +27,6 @@ static void* l_alloc(void* ud, void* ptr, size_t osize,
 
 class world
 {
-    using timer_umap_t = std::unordered_map<int32_t, boost::asio::deadline_timer*>;
-
 public:
     world()
         : m_net_worker(m_context)
@@ -43,17 +41,13 @@ public:
         m_net_worker.push_bullet(m_context, "game", "127.0.0.1", 55890);
         m_net_worker.register_msg(EnumDefine::EMsgCmd::EMC_S2C_Hello, [this](int32_t pointer_id, void* data_ptr, int32_t size)
             {
-                S2C_Hello data;
-                if (!data.ParsePartialFromArray(data_ptr, size))
-                {
-                    return false;
-                }
-                std::cout << "recive " << data.member(0) << " msg abot 10000==" << data.id() << std::endl;
+                RECV_PRASE(data_ptr, S2C_Hello, size);
+                std::cout << "recive " << msg.member(0) << " msg abot 10000==" << msg.id() << std::endl;
 
                 // process some logic.
                 //SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_C2S_Hello, net_worker, m_net_worker, C2S_Hello);
-                //msg.set_id(500);
-                //msg.add_member(7878);
+                //reply.set_id(500);
+                //reply.add_member(7878);
 
                 return true;
             });
@@ -103,8 +97,8 @@ private:
                 {
                     // This number needs to be obtained through an interface that passes in the name
                     SEND_GUARD(1, EnumDefine::EMsgCmd::EMC_C2S_Hello, net_worker, m_net_worker, C2S_Hello);
-                    msg.set_id(100);
-                    msg.add_member(3434);
+                    reply.set_id(100);
+                    reply.add_member(3434);
                 }
             }
         }
