@@ -1,6 +1,4 @@
-#ifndef _CONSOLE_READER_H_
-#define _CONSOLE_READER_H_
-
+#pragma once
 #include <iostream>
 #include <string>
 #include <queue>
@@ -108,5 +106,3 @@ private:
     std::queue<command> m_commands;
     std::mutex m_mutex;
 };
-
-#endif

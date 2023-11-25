@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 message C2S_Enter {
-    optional int32 id       = 1;
+    optional int32 uid      = 1;
     optional string token   = 2;
 }
 

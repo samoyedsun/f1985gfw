@@ -1,6 +1,4 @@
-#ifndef _ENGINE_H_
-#define _ENGINE_H_
-
+#pragma once
 #include "../source/common.hpp"
 
 struct lua_State;
@@ -8,6 +6,9 @@ class engine
 {
 public:
     engine();
+    ~engine();
+    void init();
+    void destory();
     void run();
 
 private:
@@ -26,5 +27,3 @@ private:
 };
 
 extern engine g_engine;
-
-#endif

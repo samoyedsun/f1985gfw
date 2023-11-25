@@ -1,7 +1,6 @@
-#ifndef _DATA_PACKET_H_
-#define _DATA_PACKET_H_
-#include <iostream>;
-#include <cassert>;
+#pragma once
+#include <iostream>
+#include <cassert>
 
 class data_packet
 {
@@ -107,5 +106,3 @@ private:
     char* m_end_ptr;
     char* m_offset;
 };
-
-#endif

@@ -1,5 +1,5 @@
 #include "./engine.h"
-
+#include "./wan_server.h"
 #include "common.pb.h"
 #include "enum_define.pb.h"
 
@@ -36,33 +36,25 @@ engine::engine()
     , m_timer(m_context, boost::posix_time::milliseconds(1))
     , m_lua_vm(nullptr)
 {
+}
+
+engine::~engine()
+{
+}
+
+void engine::init()
+{
     init_script();
     m_net_worker.init(m_context);
-    m_net_worker.on_connect([this](int32_t pointer_id)
-        {
-            std::cout << "on_connect, pointer_id:" << pointer_id << std::endl;
-        });
-    m_net_worker.on_msg(EnumDefine::EMsgCmd::EMC_C2S_Enter, [this](int32_t pointer_id, void* data_ptr, int32_t size)
-        {
-            RECV_PRASE(data_ptr, C2S_Enter, size);
-            std::cout << " msg abot id:" << msg.id() << ", token:" << msg.token() << std::endl;
-            // process some logic.
-            SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_S2C_Enter, ws_worker, m_net_worker, S2C_Enter);
-            reply.set_result(EnumDefine::EErrorCode::EEC_Success);
-            // 通过ID查找对应的session数据
-            // 如果没查到，那创建session并初始化为登录状态
-            // 如果查到了，发现是离线状态那就更新为登录状态
-            // 心跳间隔多久更新为离线状态，这个需要调研一下
-            // 心跳不仅仅用于判定状态，还可用于NTP时间效正
-            return true;
-        });
-    m_net_worker.on_disconnect([this](int32_t pointer_id)
-        {
-            std::cout << "on_disconnect, pointer_id:" << pointer_id << std::endl;
-        });
+    g_wan_server.init(&m_net_worker);
     m_net_worker.open(55890);
     m_console_reader.start();
     m_timer.async_wait(boost::bind(&engine::loop, this, boost::asio::placeholders::error));
+}
+
+void engine::destory()
+{
+    g_wan_server.destory();
 }
 
 void engine::run()

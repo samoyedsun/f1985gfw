@@ -1,6 +1,4 @@
-#ifndef _COMMON_H_
-#define _COMMON_H_
-
+#pragma once
 #include <google/protobuf/message_lite.h>
 #include "net_worker.hpp"
 #include "console_reader.hpp"
@@ -42,6 +40,3 @@ private:
 	NAME msg; \
 	if (!msg.ParsePartialFromArray(MSG_PTR, MSG_SIZE)) \
 	{ return false; } 
-
-
-#endif

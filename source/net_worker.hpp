@@ -1,6 +1,4 @@
-#ifndef _NET_WORKER_H_
-#define _NET_WORKER_H_
-
+#pragma once
 #include <iostream>
 #include <memory>
 #include <unordered_map>
@@ -549,7 +547,8 @@ class ws_worker
 
     using pointer_ptr = std::unique_ptr<pointer>;
     using msg_handler = std::function<bool(int32_t, void*, uint16_t)>;
-	using other_handler = std::function<void(int32_t)>;
+    using connect_handler = std::function<void(int32_t, std::string, uint16_t)>;
+	using disconnect_handler = std::function<void(int32_t)>;
 
 public:
     ws_worker(boost::asio::io_context& context)
@@ -607,7 +606,6 @@ public:
     void close(int32_t pointer_id)
     {
         m_pointer_ptr_umap[pointer_id]->set_unconnect();
-        std::cout << "socket close, pointer_id:" << pointer_id << std::endl;
         m_disconnect_handler(pointer_id);
     }
 
@@ -621,7 +619,7 @@ public:
         return msg_handler_it->second(pointer_id, data_ptr, size);
     }
     
-    void on_connect(other_handler handler)
+    void on_connect(connect_handler handler)
     {
         m_connect_handler = handler;
     }
@@ -631,7 +629,7 @@ public:
         m_msg_handler_umap.try_emplace(msg_id, handler);
     }
 
-    void on_disconnect(other_handler handler)
+    void on_disconnect(disconnect_handler handler)
     {
         m_disconnect_handler = handler;
     }
@@ -655,10 +653,10 @@ private:
             {
                 if (!ec)
                 {
-                    std::cout << "Accepted connection from "
-                        << m_pointer_ptr_umap[pointer_id]->socket().remote_endpoint().address().to_string() << std::endl;
+                    uint16_t port = m_pointer_ptr_umap[pointer_id]->socket().remote_endpoint().port();
+                    std::string ip =  m_pointer_ptr_umap[pointer_id]->socket().remote_endpoint().address().to_string();
                     m_pointer_ptr_umap[pointer_id]->start();
-                    m_connect_handler(pointer_id);
+                    m_connect_handler(pointer_id, ip, port);
                 }
                 else
                 {
@@ -686,8 +684,6 @@ private:
     tcp::acceptor m_acceptor;
     int32_t m_max_recv_size;
     std::unordered_map<int32_t, msg_handler> m_msg_handler_umap;
-    other_handler m_connect_handler;
-    other_handler m_disconnect_handler;
+    connect_handler m_connect_handler;
+    disconnect_handler m_disconnect_handler;
 };
-
-#endif

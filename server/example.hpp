@@ -1,6 +1,4 @@
-#ifndef _TEST_H_
-#define _TEST_H_
-
+#pragma once
 #include "common.pb.h"
 #include "enum_define.pb.h"
 #include "../source/common.hpp"
@@ -395,8 +393,6 @@ private:
     boost::asio::deadline_timer m_timer;
     lua_State* m_lua_vm;
 };
-
-#endif
 
 /* Example
 int main()
