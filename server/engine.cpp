@@ -1,5 +1,6 @@
 #include "./engine.h"
 #include "./wan_server.h"
+#include "./scene_mgr.h"
 #include "common.pb.h"
 #include "enum_define.pb.h"
 
@@ -75,20 +76,18 @@ void engine::loop(const boost::system::error_code& ec)
     auto end_tick = boost::asio::chrono::steady_clock::now();
     uint32_t spend_tick = static_cast<uint32_t>((end_tick - begin_tick).count() / 1000 / 1000);
     //std::cout << "loop one times. spend_tick:" << spend_tick << std::endl;
+    m_delta = 1;
     if (spend_tick < tick_interval)
     {
-        int32_t tick = tick_interval - spend_tick;
-        m_timer.expires_from_now(boost::posix_time::milliseconds(tick));
+        m_delta = tick_interval - spend_tick;
     }
-    else
-    {
-        m_timer.expires_from_now(boost::posix_time::milliseconds(1));
-    }
+    m_timer.expires_from_now(boost::posix_time::milliseconds(m_delta));
     m_timer.async_wait(boost::bind(&engine::loop, this, boost::asio::placeholders::error));
 }
 
 void engine::run_once()
 {
+    g_scene_mgr.update(m_delta);
     {
         console_reader::command cmd;
         if (m_console_reader.pop_front(cmd))
