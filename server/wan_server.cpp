@@ -22,7 +22,7 @@ uint32_t session::get_uid()
     return m_uid;
 }
 
-void wan_server::init(ws_worker* worker)
+void wan_server::init(net_worker* worker)
 {
     m_net_worker_ptr = worker;
     m_net_worker_ptr->on_connect([this](int32_t pointer_id, std::string ip, uint16_t port)
@@ -47,7 +47,7 @@ bool wan_server::handle_enter(int32_t pointer_id, void* data_ptr, int32_t size)
     RECV_PRASE(data_ptr, C2S_Enter, size);
     int32_t uid = msg.uid();
     std::cout << " msg abot uid:" << uid << ", token:" << msg.token() << std::endl;
-    SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_S2C_Enter, ws_worker, *m_net_worker_ptr, S2C_Enter);
+    SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_S2C_Enter, net_worker, *m_net_worker_ptr, S2C_Enter);
     reply.set_result(EnumDefine::EErrorCode::EEC_Success);
     m_sessions[pointer_id]->set_uid(uid);
     g_player_mgr.enter(uid);

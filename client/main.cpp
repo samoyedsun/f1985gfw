@@ -39,7 +39,15 @@ public:
 
         m_net_worker.init(m_context, 1024 * 1024, 5, 100);
         m_net_worker.push_bullet(m_context, "game", "127.0.0.1", 55890);
-        m_net_worker.register_msg(EnumDefine::EMsgCmd::EMC_S2C_Hello, [this](int32_t pointer_id, void* data_ptr, int32_t size)
+        m_net_worker.on_connect([this](int32_t pointer_id, std::string ip, uint16_t port)
+            {
+                std::cout << "on_connect, pointer_id:" << pointer_id << ", ip:" << ip << ", port:" << port << std::endl;
+            });
+        m_net_worker.on_disconnect([this](int32_t pointer_id)
+            {
+                std::cout << "on_disconnect, pointer_id:" << pointer_id << std::endl;
+            });
+        m_net_worker.on_msg(EnumDefine::EMsgCmd::EMC_S2C_Hello, [this](int32_t pointer_id, void* data_ptr, int32_t size)
             {
                 RECV_PRASE(data_ptr, S2C_Hello, size);
                 std::cout << "recive " << msg.member(0) << " msg abot 10000==" << msg.id() << std::endl;

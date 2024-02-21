@@ -57,10 +57,18 @@ public:
     {
         init_script();
         m_net_worker.init(m_context);
-        m_net_worker.register_msg(EnumDefine::EMsgCmd::EMC_C2S_Hello, [this](int32_t pointer_id, void* data_ptr, int32_t size)
+        m_net_worker.on_connect([this](int32_t pointer_id, std::string ip, uint16_t port)
+            {
+                std::cout << "on_connect, pointer_id:" << pointer_id << ", ip:" << ip << ", port:" << port << std::endl;
+            });
+        m_net_worker.on_disconnect([this](int32_t pointer_id)
+            {
+                std::cout << "on_disconnect, pointer_id:" << pointer_id << std::endl;
+            });
+        m_net_worker.on_msg(EnumDefine::EMsgCmd::EMC_C2S_Hello, [this](int32_t pointer_id, void* data_ptr, int32_t size)
             {
                 RECV_PRASE(data_ptr, C2S_Hello, size);
-                std::cout << "recive " << msg.member(0) << " msg abot 10000==" << msg.id() << std::endl;
+                std::cout << "recive " << pointer_id << ", member:" << msg.member(0) << " msg abot 10000==" << msg.id() << std::endl;
                 // process some logic.
                 SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_S2C_Hello, net_worker, m_net_worker, S2C_Hello);
                 reply.set_id(200);
@@ -112,10 +120,15 @@ private:
             {
                 if (cmd.name == "hello")
                 {
-                    // This number needs to be obtained through an interface that passes in the name
-                    SEND_GUARD(1, EnumDefine::EMsgCmd::EMC_S2C_Hello, net_worker, m_net_worker, S2C_Hello);
-                    reply.set_id(100);
-                    reply.add_member(3434);
+                    if (cmd.params.size() > 0)
+                    {
+                        int32_t pointer_id = std::stoi(cmd.params[0]);
+                        std::cout << "pointer_id:" << pointer_id << std::endl;
+                        // This number needs to be obtained through an interface that passes in the name
+                        SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_S2C_Hello, net_worker, m_net_worker, S2C_Hello);
+                        reply.set_id(100);
+                        reply.add_member(3434);
+                    }
                 }
                 if (cmd.name == "refresh")
                 {
@@ -220,186 +233,12 @@ private:
     lua_State* m_lua_vm;
 };
 
-
-class ws_world
-{
-public:
-    ws_world()
-        : m_net_worker(m_context)
-        , m_console_reader(m_context)
-        , m_timer(m_context, boost::posix_time::milliseconds(1))
-        , m_lua_vm(nullptr)
-    {
-        init_script();
-        m_net_worker.init(m_context);
-        m_net_worker.register_msg(EnumDefine::EMsgCmd::EMC_C2S_Enter, [this](int32_t pointer_id, void* data_ptr, int32_t size)
-            {
-                RECV_PRASE(data_ptr, C2S_Enter, size);
-                std::cout << " msg abot id:" << msg.id() << ", token:" << msg.token() << std::endl;
-                // process some logic.
-                SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_S2C_Enter, ws_worker, m_net_worker, S2C_Enter);
-                reply.set_result(234);
-
-                return true;
-            });
-        m_net_worker.open(55890);
-        m_console_reader.start();
-        m_timer.async_wait(boost::bind(&ws_world::loop, this, boost::asio::placeholders::error));
-    }
-
-    void run()
-    {
-        m_context.run();
-        lua_close(m_lua_vm);
-    }
-
-private:
-    void loop(const boost::system::error_code& ec)
-    {
-        if (ec)
-        {
-            std::cout << "loop failed:" << ec.message() << std::endl;
-            return;
-        }
-        auto begin_tick = boost::asio::chrono::steady_clock::now();
-        run_once();
-        auto end_tick = boost::asio::chrono::steady_clock::now();
-        uint32_t spend_tick = static_cast<uint32_t>((end_tick - begin_tick).count() / 1000 / 1000);
-        //std::cout << "loop one times. spend_tick:" << spend_tick << std::endl;
-        if (spend_tick < tick_interval)
-        {
-            int32_t tick = tick_interval - spend_tick;
-            m_timer.expires_from_now(boost::posix_time::milliseconds(tick));
-        }
-        else
-        {
-            m_timer.expires_from_now(boost::posix_time::milliseconds(1));
-        }
-        m_timer.async_wait(boost::bind(&ws_world::loop, this, boost::asio::placeholders::error));
-    }
-
-    void run_once()
-    {
-        {
-            console_reader::command cmd;
-            if (m_console_reader.pop_front(cmd))
-            {
-                if (cmd.name == "hello")
-                {
-                    // This number needs to be obtained through an interface that passes in the name
-                    SEND_GUARD(1, EnumDefine::EMsgCmd::EMC_S2C_Hello, ws_worker, m_net_worker, S2C_Hello);
-                    reply.set_id(100);
-                    reply.add_member(3434);
-                }
-                if (cmd.name == "refresh")
-                {
-                    int32_t ret = luaL_dofile(m_lua_vm, LUA_SCRIPT_PUB_LAUNCH);
-                    if (ret != 0)
-                    {
-                        const char* errorMsg = lua_tostring(m_lua_vm, -1);
-                        std::cout << "error:" << errorMsg << std::endl;
-                        lua_pop(m_lua_vm, 1);
-                    }
-                }
-                if (cmd.name == "reload")
-                {
-                    init_script();
-                }
-                if (cmd.name == "testlua1")
-                {
-                    int count = lua_gettop(m_lua_vm);
-                    int32_t type = lua_getglobal(m_lua_vm, "CheckAddBuffManager");
-                    count = lua_gettop(m_lua_vm);
-                    if (type == LUA_TTABLE)
-                    {
-                        lua_pushstring(m_lua_vm, "Check");
-                        count = lua_gettop(m_lua_vm);
-                        type = lua_gettable(m_lua_vm, -2);
-                        count = lua_gettop(m_lua_vm);
-                        if (type == LUA_TFUNCTION)
-                        {
-                            lua_pushvalue(m_lua_vm, -2);
-                            count = lua_gettop(m_lua_vm);
-                            lua_remove(m_lua_vm, 1);
-                            count = lua_gettop(m_lua_vm);
-                            lua_pushinteger(m_lua_vm, 111);
-                            lua_pushinteger(m_lua_vm, 222);
-                            int32_t ret = lua_pcall(m_lua_vm, 3, 0, 0);
-                            count = lua_gettop(m_lua_vm);
-                            count = lua_gettop(m_lua_vm);
-                        }
-                        else
-                        {
-                            lua_pop(m_lua_vm, 2);
-                        }
-                    }
-                    else {
-                        lua_pop(m_lua_vm, 1);
-                    }
-                }
-                if (cmd.name == "testlua2")
-                {
-                    int32_t type = lua_getglobal(m_lua_vm, "CheckAddBuffManagerCheck");
-                    if (type == LUA_TFUNCTION)
-                    {
-                        lua_pushstring(m_lua_vm, "sdfsdf111");
-                        lua_pushstring(m_lua_vm, "sdfsdf222");
-                        lua_call(m_lua_vm, 2, 0);
-                    }
-                    else
-                    {
-                        lua_pop(m_lua_vm, 1);
-                    }
-                }
-            }
-        }
-    }
-
-    void init_script()
-    {
-        if (m_lua_vm)
-        {
-            lua_close(m_lua_vm);
-            m_lua_vm = nullptr;
-        }
-
-        m_lua_vm = lua_newstate(l_alloc, nullptr);
-        luaL_openlibs(m_lua_vm);
-
-        // setting package.path
-        lua_getglobal(m_lua_vm, "package");
-        lua_pushstring(m_lua_vm, LUA_SCRIPT_PATH_PUB);
-        lua_getfield(m_lua_vm, -2, "path");
-        lua_concat(m_lua_vm, 2);
-        lua_setfield(m_lua_vm, -2, "path");
-        lua_pop(m_lua_vm, 1);
-        int32_t num = lua_gettop(m_lua_vm);
-        
-        int32_t ret = luaL_dofile(m_lua_vm, LUA_SCRIPT_PUB_LAUNCH);
-        if (ret != 0)
-        {
-            const char* errorMsg = lua_tostring(m_lua_vm, -1);
-            std::cout << "error:" << errorMsg << std::endl;
-            lua_pop(m_lua_vm, 1);
-        }
-    }
-
-    static const int32_t tick_interval = 16;
-
-private:
-    boost::asio::io_context m_context;
-    ws_worker m_net_worker;
-    console_reader m_console_reader;
-    boost::asio::deadline_timer m_timer;
-    lua_State* m_lua_vm;
-};
-
 /* Example
 int main()
 {
-    //SetConsoleOutputCP(CP_UTF8);
-    //world w;
-    //w.run();
+    SetConsoleOutputCP(CP_UTF8);
+    world w;
+    w.run();
 
     // Ding Ding alarm
     std::string const in_server = "oapi.dingtalk.com";
@@ -437,5 +276,4 @@ int main()
     }
     return 0;
 }
-
 */

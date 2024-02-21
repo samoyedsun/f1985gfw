@@ -95,7 +95,7 @@ void engine::run_once()
             if (cmd.name == "hello")
             {
                 // This number needs to be obtained through an interface that passes in the name
-                SEND_GUARD(EnumDefine::EMsgCmd::EMC_S2C_Hello, EnumDefine::EMsgCmd::EMC_S2C_Hello, ws_worker, m_net_worker, S2C_Hello);
+                SEND_GUARD(EnumDefine::EMsgCmd::EMC_S2C_Hello, EnumDefine::EMsgCmd::EMC_S2C_Hello, net_worker, m_net_worker, S2C_Hello);
                 reply.set_id(100);
                 reply.add_member(3434);
             }

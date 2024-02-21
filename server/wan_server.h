@@ -17,11 +17,11 @@ private:
     uint32_t m_uid;
 };
 
-class ws_worker;
+class net_worker;
 class wan_server
 {
 public:
-    void init(ws_worker* worker);
+    void init(net_worker* worker);
     void destory();
 
 public:
@@ -34,7 +34,7 @@ private:
 
 private:
     std::unordered_map<int32_t, std::unique_ptr<session>> m_sessions;
-    ws_worker* m_net_worker_ptr;
+    net_worker* m_net_worker_ptr;
 };
 
 extern wan_server g_wan_server;

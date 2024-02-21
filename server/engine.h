@@ -20,7 +20,7 @@ private:
 
 private:
     boost::asio::io_context m_context;
-    ws_worker m_net_worker;
+    net_worker m_net_worker;
     console_reader m_console_reader;
     boost::asio::deadline_timer m_timer;
     int32_t m_delta;
