@@ -5,7 +5,7 @@ build/
 vsxmake2022/
 client/bin
 server/bin
-
+publish
 # MacOS Cache
 .DS_Store
 
