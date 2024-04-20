@@ -334,6 +334,7 @@ public:
         auto msg_handler_it = m_msg_handler_umap.find(msg_id);
         if (msg_handler_it == m_msg_handler_umap.end())
         {
+            std::cout << "illegal message number" << std::endl;
             return false;
         }
         return msg_handler_it->second(pointer_id, data_ptr, size);

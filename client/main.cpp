@@ -103,8 +103,14 @@ private:
             {
                 if (cmd.name == "hello")
                 {
+                    if (cmd.params.size() <= 0)
+                    {
+                        std::cout << "Insufficient parameters！" << std::endl;
+                        return;
+                    }
+                    int32_t pointer_id = std::stoi(cmd.params[0]);
                     // This number needs to be obtained through an interface that passes in the name
-                    SEND_GUARD(1, EnumDefine::EMsgCmd::EMC_C2S_Hello, net_worker, m_net_worker, C2S_Hello);
+                    SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_C2S_Hello, net_worker, m_net_worker, C2S_Hello);
                     reply.set_id(100);
                     reply.add_member(3434);
                 }

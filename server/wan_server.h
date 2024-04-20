@@ -26,6 +26,7 @@ public:
 
 public:
     bool handle_enter(int32_t pointer_id, void* data_ptr, int32_t size);
+    bool handle_hello(int32_t pointer_id, void* data_ptr, int32_t size);
 
 private:
     void add_session(int32_t pointer_id, std::string ip, uint32_t port);

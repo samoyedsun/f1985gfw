@@ -36,6 +36,7 @@ void wan_server::init(net_worker* worker)
             std::cout << "on_disconnect, pointer_id:" << pointer_id << std::endl;
         });
     m_net_worker_ptr->on_msg(EnumDefine::EMsgCmd::EMC_C2S_Enter, std::bind(&wan_server::handle_enter, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+    m_net_worker_ptr->on_msg(EnumDefine::EMsgCmd::EMC_C2S_Hello, std::bind(&wan_server::handle_hello, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 }
 
 void wan_server::destory()
@@ -51,6 +52,19 @@ bool wan_server::handle_enter(int32_t pointer_id, void* data_ptr, int32_t size)
     reply.set_result(EnumDefine::EErrorCode::EEC_Success);
     m_sessions[pointer_id]->set_uid(uid);
     g_player_mgr.enter(uid);
+    return true;
+}
+
+bool wan_server::handle_hello(int32_t pointer_id, void* data_ptr, int32_t size)
+{
+    RECV_PRASE(data_ptr, C2S_Hello, size);
+    int32_t id = msg.id();
+    int32_t member = msg.member(0);
+    std::cout << " msg hello id:" << id << ", member:" << member << std::endl;
+    SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_S2C_Hello, net_worker, *m_net_worker_ptr, S2C_Hello);
+    reply.set_id(100);
+    reply.add_member(3434);
+    reply.set_id(EnumDefine::EErrorCode::EEC_Success);
     return true;
 }
 

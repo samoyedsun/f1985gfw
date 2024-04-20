@@ -16,11 +16,10 @@ public:
     }
     ~msg_send_guard()
     {
-        void* ptr = m_data_packet.write_data(nullptr, m_message.ByteSize());
-        if (m_message.SerializePartialToArray(ptr, m_message.ByteSize()))
+        void* ptr = m_data_packet.write_data(nullptr, m_message.ByteSizeLong());
+        if (m_message.SerializePartialToArray(ptr, m_message.ByteSizeLong()))
         {
-            std::cout << m_message.ByteSize() << std::endl;
-            std::cout << m_data_packet.size() << std::endl;
+            std::cout << "byte size:" << m_message.ByteSizeLong() << "\tsize:" << m_data_packet.size() << std::endl;
             m_worker_ptr->send(m_pointer_id, m_msg_id, m_data_packet.get_mem_ptr(), m_data_packet.size());
         }
     }

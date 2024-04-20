@@ -95,7 +95,13 @@ void engine::run_once()
             if (cmd.name == "hello")
             {
                 // This number needs to be obtained through an interface that passes in the name
-                SEND_GUARD(EnumDefine::EMsgCmd::EMC_S2C_Hello, EnumDefine::EMsgCmd::EMC_S2C_Hello, net_worker, m_net_worker, S2C_Hello);
+                if (cmd.params.size() <= 0)
+                {
+                    std::cout << "Insufficient parameters！" << std::endl;
+                    return;
+                }
+                int32_t pointer_id = std::stoi(cmd.params[0]);
+                SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_S2C_Hello, net_worker, m_net_worker, S2C_Hello);
                 reply.set_id(100);
                 reply.add_member(3434);
             }
