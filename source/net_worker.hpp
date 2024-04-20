@@ -108,7 +108,7 @@ class net_worker
         {
             if (m_status != ENET_STATUS_CONNECTED)
             {
-                std::cout << "Have not connected success!" << std::endl;
+                std::cout << "have not connected success!" << std::endl;
                 return false;
             }
             data_packet data_packet;
@@ -129,6 +129,11 @@ class net_worker
     private:
         void read_start()
         {
+            if (m_status != ENET_STATUS_CONNECTED)
+            {
+                std::cout << "connection closed, stop reading data." << std::endl;
+                return;
+            }
             void* offset_ptr = (void*)((int8_t*)m_recv_buf_ptr + m_recv_size);
             int32_t left_size = m_owner_ptr->max_recv_size() - m_recv_size;
             if (m_ws_ptr)
@@ -375,7 +380,7 @@ private:
                 }
                 else
                 {
-                    std::cout << "Accept failed:" << ec.message() << std::endl;
+                    std::cout << "accept failed:" << ec.message() << std::endl;
                 }
         start_accept(ws);
             });
@@ -391,11 +396,11 @@ private:
                 if (!ec)
                 {
                     std::string& name = m_outward_ptr_umap[pointer_id]->name;
-                    std::cout << "Connected " << name << " server" << std::endl;
+                    std::cout << "connected " << name << " server" << ", pointer_id:" << pointer_id << std::endl;
                     m_pointer_ptr_umap[pointer_id]->start();
                     return;
                 }
-        std::cout << "Connect failed:" << ec.message() << std::endl;
+        std::cout << "connect failed:" << ec.message() << std::endl;
         close(pointer_id);
             });
     }
