@@ -49,7 +49,11 @@ void player_mgr::enter(int32_t uid)
 
 void player_mgr::leave(int32_t uid)
 {
-    m_players[uid]->offline();
+    auto it = m_players.find(uid);
+    if (it != m_players.end())
+    {
+        it->second->offline();
+    }
 }
 
 player_mgr g_player_mgr;

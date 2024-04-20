@@ -63,8 +63,11 @@ void wan_server::add_session(int32_t pointer_id, std::string ip, uint32_t port)
 void wan_server::del_session(int32_t pointer_id)
 {
     uint32_t uid = m_sessions[pointer_id]->get_uid();
+    if (uid > 0)
+    {
+        g_player_mgr.leave(uid);
+    }
     m_sessions.erase(pointer_id);
-    g_player_mgr.leave(uid);
 }
 
 wan_server g_wan_server;
