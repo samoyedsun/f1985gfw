@@ -48,7 +48,7 @@ bool wan_server::handle_enter(int32_t pointer_id, void* data_ptr, int32_t size)
     RECV_PRASE(data_ptr, C2S_Enter, size);
     int32_t uid = msg.uid();
     std::cout << " msg abot uid:" << uid << ", token:" << msg.token() << std::endl;
-    SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_S2C_Enter, net_worker, *m_net_worker_ptr, S2C_Enter);
+    SEND_GUARD(pointer_id, *m_net_worker_ptr, S2C_Enter);
     reply.set_result(EnumDefine::EErrorCode::EEC_Success);
     m_sessions[pointer_id]->set_uid(uid);
     g_player_mgr.enter(uid);
@@ -61,10 +61,9 @@ bool wan_server::handle_hello(int32_t pointer_id, void* data_ptr, int32_t size)
     int32_t id = msg.id();
     int32_t member = msg.member(0);
     std::cout << " msg hello id:" << id << ", member:" << member << std::endl;
-    SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_S2C_Hello, net_worker, *m_net_worker_ptr, S2C_Hello);
+    SEND_GUARD(pointer_id, *m_net_worker_ptr, S2C_Hello);
     reply.set_id(100);
     reply.add_member(3434);
-    reply.set_id(EnumDefine::EErrorCode::EEC_Success);
     return true;
 }
 

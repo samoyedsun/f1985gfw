@@ -101,7 +101,7 @@ void engine::run_once()
                     return;
                 }
                 int32_t pointer_id = std::stoi(cmd.params[0]);
-                SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_S2C_Hello, net_worker, m_net_worker, S2C_Hello);
+                SEND_GUARD(pointer_id, m_net_worker, S2C_Hello);
                 reply.set_id(100);
                 reply.add_member(3434);
             }

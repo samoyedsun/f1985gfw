@@ -3,11 +3,10 @@
 #include "net_worker.hpp"
 #include "console_reader.hpp"
 
-template<typename T>
 class msg_send_guard
 {
 public:
-    msg_send_guard(int32_t pointer_id, uint16_t msg_id, T& net_worker, google::protobuf::MessageLite& message)
+    msg_send_guard(int32_t pointer_id, uint16_t msg_id, net_worker& net_worker, google::protobuf::MessageLite& message)
         : m_pointer_id(pointer_id)
         , m_msg_id(msg_id)
         , m_worker_ptr(&net_worker)
@@ -27,13 +26,13 @@ public:
 private:
     int32_t m_pointer_id;
     uint16_t m_msg_id;
-    T* m_worker_ptr;
+    net_worker* m_worker_ptr;
     google::protobuf::MessageLite& m_message;
     data_packet m_data_packet;
 };
 
-#define SEND_GUARD(POINTER_ID, MSG_ID, NET_TYPE, NET_WORKER, NAME) NAME reply; \
-	msg_send_guard<NET_TYPE> send_guard(POINTER_ID, MSG_ID, NET_WORKER, reply)
+#define SEND_GUARD(POINTER_ID, NET_WORKER, NAME) NAME reply; \
+	msg_send_guard send_guard(POINTER_ID, EnumDefine::EMsgCmd::EMC_##NAME, NET_WORKER, reply)
 
 #define RECV_PRASE(MSG_PTR, NAME, MSG_SIZE) \
 	NAME msg; \

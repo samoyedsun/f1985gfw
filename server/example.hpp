@@ -70,7 +70,7 @@ public:
                 RECV_PRASE(data_ptr, C2S_Hello, size);
                 std::cout << "recive " << pointer_id << ", member:" << msg.member(0) << " msg abot 10000==" << msg.id() << std::endl;
                 // process some logic.
-                SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_S2C_Hello, net_worker, m_net_worker, S2C_Hello);
+                SEND_GUARD(pointer_id, m_net_worker, S2C_Hello);
                 reply.set_id(200);
                 reply.add_member(5656);
 
@@ -125,7 +125,7 @@ private:
                         int32_t pointer_id = std::stoi(cmd.params[0]);
                         std::cout << "pointer_id:" << pointer_id << std::endl;
                         // This number needs to be obtained through an interface that passes in the name
-                        SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_S2C_Hello, net_worker, m_net_worker, S2C_Hello);
+                        SEND_GUARD(pointer_id, m_net_worker, S2C_Hello);
                         reply.set_id(100);
                         reply.add_member(3434);
                     }

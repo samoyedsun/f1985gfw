@@ -53,7 +53,7 @@ public:
                 std::cout << "recive " << msg.member(0) << " msg abot 10000==" << msg.id() << std::endl;
 
                 // process some logic.
-                //SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_C2S_Hello, net_worker, m_net_worker, C2S_Hello);
+                //SEND_GUARD(pointer_id, m_net_worker, C2S_Hello);
                 //reply.set_id(500);
                 //reply.add_member(7878);
 
@@ -110,7 +110,7 @@ private:
                     }
                     int32_t pointer_id = std::stoi(cmd.params[0]);
                     // This number needs to be obtained through an interface that passes in the name
-                    SEND_GUARD(pointer_id, EnumDefine::EMsgCmd::EMC_C2S_Hello, net_worker, m_net_worker, C2S_Hello);
+                    SEND_GUARD(pointer_id, m_net_worker, C2S_Hello);
                     reply.set_id(100);
                     reply.add_member(3434);
                 }
