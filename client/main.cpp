@@ -105,7 +105,7 @@ private:
                 {
                     if (cmd.params.size() <= 0)
                     {
-                        std::cout << "Insufficient parameters！" << std::endl;
+                        std::cout << "Insufficient parameters!" << std::endl;
                         return;
                     }
                     int32_t pointer_id = std::stoi(cmd.params[0]);

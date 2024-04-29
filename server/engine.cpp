@@ -97,7 +97,7 @@ void engine::run_once()
                 // This number needs to be obtained through an interface that passes in the name
                 if (cmd.params.size() <= 0)
                 {
-                    std::cout << "Insufficient parameters！" << std::endl;
+                    std::cout << "Insufficient parameters!" << std::endl;
                     return;
                 }
                 int32_t pointer_id = std::stoi(cmd.params[0]);
