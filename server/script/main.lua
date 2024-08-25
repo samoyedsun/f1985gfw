@@ -73,7 +73,7 @@ end
 function CheckAddBuffManagerCheck(pCret, buffDb)
     print("开始check----------" .. pCret .. "==" .. buffDb)
 end
-
+--[[ -- windows上会宕机，暂时屏蔽
 local result = lua_exec_sum(5, 10)
 print("计算出了返回值：" .. result)
 local student = lua_create_student()
@@ -90,3 +90,4 @@ local t = getmetatable(student)
 for k, v in pairs(t) do
     print(k, v)
 end
+--]]
