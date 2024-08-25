@@ -48,7 +48,7 @@ void engine::init()
     init_script();
     m_net_worker.init(m_context);
     g_wan_server.init(&m_net_worker);
-    m_net_worker.open(55890);
+    m_net_worker.open(55890, true);
     m_console_reader.start();
     m_timer.async_wait(boost::bind(&engine::loop, this, boost::asio::placeholders::error));
 }
