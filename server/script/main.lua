@@ -73,3 +73,20 @@ end
 function CheckAddBuffManagerCheck(pCret, buffDb)
     print("开始check----------" .. pCret .. "==" .. buffDb)
 end
+
+local result = lua_exec_sum(5, 10)
+print("计算出了返回值：" .. result)
+local student = lua_create_student()
+print("student type:" .. type(student))
+lua_student_set_name(student, "hahahahahhahhahah")
+local student_name = lua_student_get_name(student)
+print("student name:" .. student_name)
+
+local student = get_global_student()
+student:set_age(45645)
+print(student.get_age(student))
+
+local t = getmetatable(student)
+for k, v in pairs(t) do
+    print(k, v)
+end

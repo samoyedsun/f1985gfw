@@ -1,6 +1,24 @@
 #pragma once
 #include "../source/common.hpp"
 
+class student
+{
+public:
+    student();
+    ~student();
+
+    std::string get_name();
+    void set_name(std::string);
+    uint32_t get_age();
+    void set_age(uint32_t age);
+
+    void print();
+
+private:
+    std::string m_name;
+    uint32_t m_age;
+};
+
 struct lua_State;
 class engine
 {
