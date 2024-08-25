@@ -1,5 +1,5 @@
 
--- ĞÔÄÜÖ¸±êÊÕ¼¯Æ÷
+-- æ€§èƒ½æŒ‡æ ‡æ”¶é›†å™¨
 Profiler = {
 	tempBeginTick = 0,
 	totalCpuCost = 0,
@@ -63,16 +63,16 @@ function Profiler:dump(num)
 			break
 		end
 		local messages = {}
-		table.insert(messages, "CostCpu£º" ..  string.format("%.2f", report.cpuCost))
-		table.insert(messages, "Percent£º" .. string.format("%.2f", percent))
-		table.insert(messages, "CallCount£º" .. report.callCount)
-		table.insert(messages, "Average£º" .. string.format("%.2f", report.cpuCost / report.callCount))
-		table.insert(messages, "Title£º" .. report.title)
-		print("¡¾ĞÔÄÜÖ¸±ê¡¿£º" .. table.concat(messages, ", "))
+		table.insert(messages, "CostCpuï¼š" ..  string.format("%.2f", report.cpuCost))
+		table.insert(messages, "Percentï¼š" .. string.format("%.2f", percent))
+		table.insert(messages, "CallCountï¼š" .. report.callCount)
+		table.insert(messages, "Averageï¼š" .. string.format("%.2f", report.cpuCost / report.callCount))
+		table.insert(messages, "Titleï¼š" .. report.title)
+		print("ã€æ€§èƒ½æŒ‡æ ‡ã€‘ï¼š" .. table.concat(messages, ", "))
 	end
 end
 
--- º¯Êı°ü×°Æ÷£¬ÓÃÓÚ²¶»ñ±¨´íºÍ³¬Ê±
+-- å‡½æ•°åŒ…è£…å™¨ï¼Œç”¨äºæ•è·æŠ¥é”™å’Œè¶…æ—¶
 FunctionWrapper = {}
 function FunctionWrapper:new(quota, errorDump, timeoutDump)
 	if not quota then
@@ -102,18 +102,18 @@ function FunctionWrapper:exec(func, ...)
 	end, ...)}
 	Profiler:stop()
 	if not results[1] then
-		self.errorDump("¡¾±¨´íĞÅÏ¢¡¿£º" .. traceMsg)
+		self.errorDump("ã€æŠ¥é”™ä¿¡æ¯ã€‘ï¼š" .. traceMsg)
 	end
 	if beginTick then
 		local cpuCost = gettickcount() - beginTick
 		if cpuCost >= self.quota then
 			local info = debug.getinfo(func, "S")
 			local messages = {}
-			table.insert(messages, "Quota£º" .. self.quota)
-			table.insert(messages, "Cost£º" .. cpuCost)
-			table.insert(messages, "Line£º" .. info.linedefined)
-			table.insert(messages, "Path£º" .. info.source)
-			self.timeoutDump("¡¾³¬Ê±ĞÅÏ¢¡¿£º" .. table.concat(messages, ", "))
+			table.insert(messages, "Quotaï¼š" .. self.quota)
+			table.insert(messages, "Costï¼š" .. cpuCost)
+			table.insert(messages, "Lineï¼š" .. info.linedefined)
+			table.insert(messages, "Pathï¼š" .. info.source)
+			self.timeoutDump("ã€è¶…æ—¶ä¿¡æ¯ã€‘ï¼š" .. table.concat(messages, ", "))
 		end
 	end
 	table.remove(results, 1)

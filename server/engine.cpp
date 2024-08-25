@@ -33,19 +33,14 @@ static void* l_alloc(void* ud, void* ptr, size_t osize,
         return realloc(ptr, nsize);
 }
 
-// 定义一个C++函数，它将被注册为Lua中的全局函数
 static int lua_exec_sum(lua_State* L) {
-    // 获取参数
     int param1 = luaL_checkinteger(L, 1);
     int param2 = luaL_checkinteger(L, 2);
-
-    // 执行计算
+    
     int result = param1 + param2;
-
-    // 将结果推入Lua栈
+    
     lua_pushinteger(L, result);
-
-    // 返回值的数量
+    
     return 1;
 }
 
@@ -92,9 +87,8 @@ int lua_student_set_age(lua_State* lua_vm)
 	return 0;
 }
 
-// 获取 Student 对象并设置元表的函数
 int lua_get_global_student(lua_State *lua_vm) {
-    student** student_ptr = (student**)lua_newuserdata(lua_vm, sizeof(student*)); // 创建一个userdata
+    student** student_ptr = (student**)lua_newuserdata(lua_vm, sizeof(student*));
     *student_ptr = global_student_ptr;
     luaL_getmetatable(lua_vm, "StudentUserData"); 
     lua_setmetatable(lua_vm, -2);
@@ -105,11 +99,11 @@ student::student()
     : m_name("Empty")
     , m_age(0)
 {
-    std::cout << "构造函数" << std::endl;
+    std::cout << "gou zao han shu" << std::endl;
 }
 student::~student()
 {
-    std::cout << "析构函数" << std::endl;
+    std::cout << "xi gou han shu" << std::endl;
 }
 std::string student::get_name()
 {
@@ -295,7 +289,7 @@ void engine::init_script()
     lua_setfield(m_lua_vm, -2, "path");
     lua_pop(m_lua_vm, 1);
 
-    // 注册C++函数到Lua全局环境中
+    // register C++ function to lua global env
     lua_pushcfunction(m_lua_vm, lua_exec_sum);
     lua_setglobal(m_lua_vm, "lua_exec_sum");
     lua_pushcfunction(m_lua_vm, lua_create_student);
@@ -306,21 +300,21 @@ void engine::init_script()
     lua_setglobal(m_lua_vm, "lua_student_get_name");
     
     
-    // 面向对象方式访问，解决参数安全性问题
+    // oop access mode, solution params safety problem
     global_student_ptr = new student();
     luaL_newmetatable(m_lua_vm, "StudentUserData");
     //lua_pushcfunction(m_lua_vm, lua_get_global_student);
     //lua_setfield(m_lua_vm, -2, "get_global_student");
     //lua_pushcfunction(m_lua_vm, lua_student_get_age);
-    //lua_setfield(m_lua_vm, -2, "get_age"); // 将lua_student_get_age添加到metatable中
-    lua_pushvalue(m_lua_vm, -1);// 复制metatable到栈顶
-    lua_setfield(m_lua_vm, -2, "__index");// 设置metatable的__index为metatable自身
+    //lua_setfield(m_lua_vm, -2, "get_age"); // let lua_student_get_age add to metatable
+    lua_pushvalue(m_lua_vm, -1);// copy metatable to stack top
+    lua_setfield(m_lua_vm, -2, "__index");// settiing metatable __index to metatable self
     luaL_setfuncs(m_lua_vm, lua_reg_student_member_funcs, 0);
-    lua_pop(m_lua_vm, 1); // 清空堆栈
+    lua_pop(m_lua_vm, 1); // clear stack
     lua_pushcfunction(m_lua_vm, lua_get_global_student);
     lua_setglobal(m_lua_vm, "get_global_student");
     int32_t num = lua_gettop(m_lua_vm);
-    std::cout << "栈上数量：" << num << std::endl;
+    std::cout << "stack size:" << num << std::endl;
     int32_t ret = luaL_dofile(m_lua_vm, LUA_SCRIPT_PUB_LAUNCH);
     if (ret != 0)
     {
